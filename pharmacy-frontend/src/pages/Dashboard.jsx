@@ -45,7 +45,12 @@ export default function Dashboard() {
   const maxDaily = Math.max(1, ...dailySales.map((d) => Number(d.total)))
 
   return (
-    <Layout title={`Welcome back, ${user.name?.split(' ')[0] || ''}`} subtitle="Here's how your shop looks today.">
+    <Layout>
+      <div className="page-header" style={{ background: '#F4EFEA' }}>
+        <h1>Welcome back, {user.name?.split(' ')[0] || ''}</h1>
+        <p className="subtitle">Here's how your shop looks today.</p>
+      </div>
+
       <div className="stat-grid">
         <div className="stat-card">
           <div className="stat-label">Revenue</div>

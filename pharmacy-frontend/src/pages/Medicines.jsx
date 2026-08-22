@@ -10,7 +10,7 @@ export default function Medicines() {
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', unit: '', reorderLevel: 10 })
+  const [form, setForm] = useState({ name: '', unit: '', reorderLevel: 10, packSize: 1 })
   const [selectedGenerics, setSelectedGenerics] = useState([]) // [{ id, name }] or [{ name, isNew: true }]
   const [genericInput, setGenericInput] = useState('')
 
@@ -51,10 +51,11 @@ export default function Medicines() {
       await api.post('/medicines', {
         ...form,
         reorderLevel: Number(form.reorderLevel),
+        packSize: Number(form.packSize) || 1,
         genericIds: selectedGenerics.filter((g) => g.id).map((g) => g.id),
         newGenerics: selectedGenerics.filter((g) => g.isNew).map((g) => g.name),
       })
-      setForm({ name: '', unit: '', reorderLevel: 10 })
+      setForm({ name: '', unit: '', reorderLevel: 10, packSize: 1 })
       setSelectedGenerics([])
       setShowForm(false)
       load(query)
@@ -85,6 +86,11 @@ export default function Medicines() {
               <div className="field">
                 <label>Unit</label>
                 <input value={form.unit} onChange={(e) => update('unit', e.target.value)} placeholder="tablet, syrup, box…" />
+              </div>
+              <div className="field">
+                <label>Pack size</label>
+                <input type="number" min="1" value={form.packSize} onChange={(e) => update('packSize', e.target.value)} placeholder="e.g. 10" />
+                <div className="field-hint">Units per strip/box. Leave as 1 if sold only as single units (e.g. a syrup bottle).</div>
               </div>
               <div className="field">
                 <label>Reorder level</label>
@@ -144,7 +150,7 @@ export default function Medicines() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Name</th><th>Generic(s)</th><th>Unit</th><th>Reorder level</th></tr>
+              <tr><th>Name</th><th>Generic(s)</th><th>Unit</th><th>Pack size</th><th>Reorder level</th></tr>
             </thead>
             <tbody>
               {medicines.map((m) => (
@@ -156,6 +162,7 @@ export default function Medicines() {
                       : '—'}
                   </td>
                   <td>{m.unit || '—'}</td>
+                  <td>{m.packSize > 1 ? `${m.packSize} per pack` : 'Single unit'}</td>
                   <td>{m.reorderLevel}</td>
                 </tr>
               ))}

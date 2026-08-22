@@ -491,3 +491,28 @@ html[dir="rtl"] .data-table th, html[dir="rtl"] .data-table td { text-align: rig
 html[dir="rtl"] .auth-logo { flex-direction: row-reverse; }
 html[dir="rtl"] .sidebar-brand { flex-direction: row-reverse; }
 html[dir="rtl"] .sidebar-user { flex-direction: row-reverse; }
+
+/* ---------- Receipt / bill ---------- */
+
+.receipt-body { max-width: 480px; margin: 0 auto; }
+.receipt-shop-name { text-align: center; font-size: 20px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.receipt-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+@media print {
+  .app-sidebar, .app-header, .page-header, .no-print,
+  .pos-grid, .btn-primary, .alert-success, .alert-error {
+    display: none !important;
+  }
+  .app-content { padding: 0 !important; }
+  .receipt-print {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  body { background: #fff !important; }
+}

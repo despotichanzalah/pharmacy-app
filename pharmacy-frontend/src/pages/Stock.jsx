@@ -13,6 +13,14 @@ export default function Stock() {
   const [form, setForm] = useState({
     medicineId: '', batchNumber: '', quantity: '', purchasePrice: '', salePrice: '', expiryDate: '',
   })
+  const [entryMode, setEntryMode] = useState('units') // 'units' | 'packs'
+  const [packsCount, setPacksCount] = useState('')
+  const [priceMode, setPriceMode] = useState('perUnit') // 'perUnit' | 'perPack'
+  const [packPurchasePrice, setPackPurchasePrice] = useState('')
+  const [packSalePrice, setPackSalePrice] = useState('')
+
+  const selectedMedicine = medicines.find((m) => m.id === Number(form.medicineId))
+  const packSize = selectedMedicine?.packSize || 1
 
   const medicineName = (id) => medicines.find((m) => m.id === id)?.name || `#${id}`
 
@@ -37,15 +45,21 @@ export default function Stock() {
     e.preventDefault()
     setError('')
     setSaving(true)
+    const finalQuantity = entryMode === 'packs' ? Number(packsCount) * packSize : Number(form.quantity)
+    const finalPurchasePrice = priceMode === 'perPack' ? Number(packPurchasePrice) / packSize : Number(form.purchasePrice)
+    const finalSalePrice = priceMode === 'perPack' ? Number(packSalePrice) / packSize : Number(form.salePrice)
     try {
       await api.post('/batches', {
         ...form,
         medicineId: Number(form.medicineId),
-        quantity: Number(form.quantity),
-        purchasePrice: Number(form.purchasePrice),
-        salePrice: Number(form.salePrice),
+        quantity: finalQuantity,
+        purchasePrice: finalPurchasePrice,
+        salePrice: finalSalePrice,
       })
       setForm({ medicineId: '', batchNumber: '', quantity: '', purchasePrice: '', salePrice: '', expiryDate: '' })
+      setPacksCount('')
+      setPackPurchasePrice('')
+      setPackSalePrice('')
       setShowForm(false)
       loadBatches(tab)
     } catch (err) {
@@ -77,22 +91,64 @@ export default function Stock() {
               <label>Batch number</label>
               <input required value={form.batchNumber} onChange={(e) => update('batchNumber', e.target.value)} placeholder="BATCH001" />
             </div>
-            <div className="field">
-              <label>Quantity</label>
-              <input required type="number" min="0" value={form.quantity} onChange={(e) => update('quantity', e.target.value)} />
-            </div>
+
+            {packSize > 1 && (
+              <div className="tab-row" style={{ marginBottom: 0 }}>
+                <button type="button" className={`tab-pill ${entryMode === 'units' ? 'active' : ''}`} onClick={() => setEntryMode('units')}>Enter loose units</button>
+                <button type="button" className={`tab-pill ${entryMode === 'packs' ? 'active' : ''}`} onClick={() => setEntryMode('packs')}>Enter packs (×{packSize})</button>
+              </div>
+            )}
+
+            {entryMode === 'packs' && packSize > 1 ? (
+              <div className="field">
+                <label>Number of packs</label>
+                <input required type="number" min="1" value={packsCount} onChange={(e) => setPacksCount(e.target.value)} placeholder={`e.g. 5 strips of ${packSize}`} />
+                <div className="field-hint">= {Number(packsCount || 0) * packSize} total units in stock</div>
+              </div>
+            ) : (
+              <div className="field">
+                <label>Quantity (units)</label>
+                <input required type="number" min="0" value={form.quantity} onChange={(e) => update('quantity', e.target.value)} />
+              </div>
+            )}
+
             <div className="field">
               <label>Expiry date</label>
               <input required type="date" value={form.expiryDate} onChange={(e) => update('expiryDate', e.target.value)} />
             </div>
-            <div className="field">
-              <label>Purchase price</label>
-              <input required type="number" step="0.01" min="0" value={form.purchasePrice} onChange={(e) => update('purchasePrice', e.target.value)} />
-            </div>
-            <div className="field">
-              <label>Sale price</label>
-              <input required type="number" step="0.01" min="0" value={form.salePrice} onChange={(e) => update('salePrice', e.target.value)} />
-            </div>
+
+            {packSize > 1 && (
+              <div className="tab-row" style={{ marginBottom: 0 }}>
+                <button type="button" className={`tab-pill ${priceMode === 'perUnit' ? 'active' : ''}`} onClick={() => setPriceMode('perUnit')}>Price per unit</button>
+                <button type="button" className={`tab-pill ${priceMode === 'perPack' ? 'active' : ''}`} onClick={() => setPriceMode('perPack')}>Price per pack</button>
+              </div>
+            )}
+
+            {priceMode === 'perPack' && packSize > 1 ? (
+              <>
+                <div className="field">
+                  <label>Purchase price (per pack)</label>
+                  <input required type="number" step="0.01" min="0" value={packPurchasePrice} onChange={(e) => setPackPurchasePrice(e.target.value)} />
+                  <div className="field-hint">= Rs {(Number(packPurchasePrice || 0) / packSize).toFixed(2)} per unit</div>
+                </div>
+                <div className="field">
+                  <label>Sale price (per pack)</label>
+                  <input required type="number" step="0.01" min="0" value={packSalePrice} onChange={(e) => setPackSalePrice(e.target.value)} />
+                  <div className="field-hint">= Rs {(Number(packSalePrice || 0) / packSize).toFixed(2)} per unit</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="field">
+                  <label>Purchase price (per unit)</label>
+                  <input required type="number" step="0.01" min="0" value={form.purchasePrice} onChange={(e) => update('purchasePrice', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Sale price (per unit)</label>
+                  <input required type="number" step="0.01" min="0" value={form.salePrice} onChange={(e) => update('salePrice', e.target.value)} />
+                </div>
+              </>
+            )}
             <div className="form-actions">
               <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save batch'}</button>
             </div>

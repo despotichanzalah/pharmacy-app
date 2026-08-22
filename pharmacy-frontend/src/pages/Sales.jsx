@@ -4,6 +4,7 @@ import Layout from '../components/Layout.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
 export default function Sales() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [medicines, setMedicines] = useState([])
   const [batches, setBatches] = useState([])
   const [customerName, setCustomerName] = useState('')
@@ -13,6 +14,7 @@ export default function Sales() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
+  const [receipt, setReceipt] = useState(null) // holds completed sale + line items for printing
 
   const medicineName = (id) => medicines.find((m) => m.id === id)?.name || `#${id}`
   const batchById = (id) => batches.find((b) => b.id === Number(id))
@@ -54,6 +56,7 @@ export default function Sales() {
         items: cart.map((c) => ({ batchId: c.batchId, quantity: c.quantity })),
       })
       setSuccess(`Sale #${data.id} completed — Rs ${data.totalAmount}`)
+      setReceipt({ sale: data, items: cart, customerName })
       setCart([])
       setCustomerName('')
       loadAll()
@@ -135,6 +138,47 @@ export default function Sales() {
           </button>
         </div>
       </div>
+
+      {receipt && (
+        <div className="panel receipt-print">
+          <div className="panel-head">
+            <h3>Receipt — Sale #{receipt.sale.id}</h3>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn-secondary btn-compact no-print" onClick={() => window.print()}>Print receipt</button>
+              <button className="btn-secondary btn-compact no-print" onClick={() => setReceipt(null)}>Close</button>
+            </div>
+          </div>
+
+          <div className="receipt-body">
+            <div className="receipt-shop-name">{user.shopName || 'Pharmacy'}</div>
+            <div className="receipt-meta">
+              <span>Sale #{receipt.sale.id}</span>
+              <span>{new Date(receipt.sale.saleDate).toLocaleString()}</span>
+            </div>
+            {receipt.customerName && <div className="receipt-meta"><span>Customer: {receipt.customerName}</span></div>}
+
+            <table className="data-table">
+              <thead><tr><th>Medicine</th><th>Batch</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+              <tbody>
+                {receipt.items.map((c) => (
+                  <tr key={c.batchId}>
+                    <td className="cell-strong">{medicineName(c.batch.medicine?.id)}</td>
+                    <td>{c.batch.batchNumber}</td>
+                    <td>{c.quantity}</td>
+                    <td>Rs {c.batch.salePrice}</td>
+                    <td>Rs {(c.quantity * c.batch.salePrice).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="cart-total">
+              <span>Total</span>
+              <span>Rs {receipt.sale.totalAmount}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

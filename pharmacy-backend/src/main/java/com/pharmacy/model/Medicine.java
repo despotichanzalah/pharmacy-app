@@ -30,6 +30,11 @@ public class Medicine {
     @Column(name = "reorder_level")
     private Integer reorderLevel = 10; // low-stock alert threshold
 
+    // How many base units (e.g. tablets) make up one pack (e.g. a strip/box).
+    // Leave at 1 for medicines that are only ever sold/tracked as single units (e.g. syrup bottles).
+    @Column(name = "pack_size")
+    private Integer packSize = 1;
+
     // A medicine can contain more than one active formula (e.g. Panadol Extra = Paracetamol + Caffeine).
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

@@ -1,5 +1,4 @@
 package com.pharmacy.controller;
-
 import com.pharmacy.dto.AuthResponse;
 import com.pharmacy.dto.LoginRequest;
 import com.pharmacy.dto.RegisterRequest;
