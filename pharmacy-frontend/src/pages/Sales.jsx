@@ -11,12 +11,14 @@ export default function Sales() {
   const [cart, setCart] = useState([])
   const [pickBatchId, setPickBatchId] = useState('')
   const [pickQty, setPickQty] = useState(1)
+  const [pickMode, setPickMode] = useState('units') // 'units' | 'packs'
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
   const [receipt, setReceipt] = useState(null) // holds completed sale + line items for printing
 
   const medicineName = (id) => medicines.find((m) => m.id === id)?.name || `#${id}`
+  const medicinePackSize = (id) => medicines.find((m) => m.id === id)?.packSize || 1
   const batchById = (id) => batches.find((b) => b.id === Number(id))
 
   function loadAll() {
@@ -26,17 +28,31 @@ export default function Sales() {
 
   useEffect(() => { loadAll() }, [])
 
+  const pickedBatch = batchById(pickBatchId)
+  const pickedPackSize = pickedBatch ? medicinePackSize(pickedBatch.medicine?.id) : 1
+
   function addToCart() {
     const batch = batchById(pickBatchId)
     if (!batch || pickQty < 1) return
+
+    const packSize = medicinePackSize(batch.medicine?.id)
+    const unitQty = pickMode === 'packs' ? Number(pickQty) * packSize : Number(pickQty)
+    const label = pickMode === 'packs' && packSize > 1
+      ? `${pickQty} pack${pickQty > 1 ? 's' : ''} (${unitQty} units)`
+      : `${unitQty} unit${unitQty > 1 ? 's' : ''}`
+
     const alreadyIn = cart.find((c) => c.batchId === batch.id)
     if (alreadyIn) {
-      setCart(cart.map((c) => c.batchId === batch.id ? { ...c, quantity: c.quantity + Number(pickQty) } : c))
+      const newUnitQty = alreadyIn.quantity + unitQty
+      setCart(cart.map((c) => c.batchId === batch.id
+        ? { ...c, quantity: newUnitQty, label: `${newUnitQty} unit${newUnitQty > 1 ? 's' : ''}` }
+        : c))
     } else {
-      setCart([...cart, { batchId: batch.id, quantity: Number(pickQty), batch }])
+      setCart([...cart, { batchId: batch.id, quantity: unitQty, label, batch }])
     }
     setPickBatchId('')
     setPickQty(1)
+    setPickMode('units')
   }
 
   function removeFromCart(batchId) {
@@ -78,19 +94,35 @@ export default function Sales() {
             <div className="form-grid">
               <div className="field">
                 <label>Batch</label>
-                <select value={pickBatchId} onChange={(e) => setPickBatchId(e.target.value)}>
+                <select value={pickBatchId} onChange={(e) => { setPickBatchId(e.target.value); setPickMode('units') }}>
                   <option value="" disabled>Select a batch…</option>
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {medicineName(b.medicine?.id)} — {b.batchNumber} ({b.quantity} left, Rs {b.salePrice})
+                      {medicineName(b.medicine?.id)} — {b.batchNumber} ({b.quantity} left, Rs {b.salePrice}/unit)
                     </option>
                   ))}
                 </select>
               </div>
+
+              {pickedBatch && pickedPackSize > 1 && (
+                <div className="tab-row" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
+                  <button type="button" className={`tab-pill ${pickMode === 'units' ? 'active' : ''}`} onClick={() => setPickMode('units')}>
+                    Sell loose (tablets)
+                  </button>
+                  <button type="button" className={`tab-pill ${pickMode === 'packs' ? 'active' : ''}`} onClick={() => setPickMode('packs')}>
+                    Sell whole pack (×{pickedPackSize})
+                  </button>
+                </div>
+              )}
+
               <div className="field">
-                <label>Quantity</label>
+                <label>{pickMode === 'packs' ? 'Number of packs' : 'Quantity (units)'}</label>
                 <input type="number" min="1" value={pickQty} onChange={(e) => setPickQty(e.target.value)} />
+                {pickedBatch && pickMode === 'packs' && (
+                  <div className="field-hint">= {Number(pickQty || 0) * pickedPackSize} tablets total</div>
+                )}
               </div>
+
               <div className="form-actions">
                 <button className="btn-secondary" type="button" onClick={addToCart} disabled={!pickBatchId}>Add to cart</button>
               </div>
@@ -114,7 +146,7 @@ export default function Sales() {
                   <tr key={c.batchId}>
                     <td className="cell-strong">{medicineName(c.batch.medicine?.id)}</td>
                     <td>{c.batch.batchNumber}</td>
-                    <td>{c.quantity}</td>
+                    <td>{c.label || `${c.quantity} units`}</td>
                     <td>Rs {(c.quantity * c.batch.salePrice).toFixed(2)}</td>
                     <td><button className="link-danger" onClick={() => removeFromCart(c.batchId)}>Remove</button></td>
                   </tr>
@@ -157,14 +189,13 @@ export default function Sales() {
             </div>
             {receipt.customerName && <div className="receipt-meta"><span>Customer: {receipt.customerName}</span></div>}
 
-            <table className="data-table">
-              <thead><tr><th>Medicine</th><th>Batch</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+            <table className="data-table receipt-table">
+              <thead><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
               <tbody>
                 {receipt.items.map((c) => (
                   <tr key={c.batchId}>
                     <td className="cell-strong">{medicineName(c.batch.medicine?.id)}</td>
-                    <td>{c.batch.batchNumber}</td>
-                    <td>{c.quantity}</td>
+                    <td>{c.label || `${c.quantity}`}</td>
                     <td>Rs {c.batch.salePrice}</td>
                     <td>Rs {(c.quantity * c.batch.salePrice).toFixed(2)}</td>
                   </tr>

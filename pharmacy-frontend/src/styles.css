@@ -494,17 +494,23 @@ html[dir="rtl"] .sidebar-user { flex-direction: row-reverse; }
 
 /* ---------- Receipt / bill ---------- */
 
-.receipt-body { max-width: 480px; margin: 0 auto; }
-.receipt-shop-name { text-align: center; font-size: 20px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.receipt-body {
+  max-width: 320px;      /* ~80mm thermal receipt width */
+  margin: 0 auto;
+  font-family: var(--mono, 'Courier New', monospace);
+}
+.receipt-shop-name { text-align: center; font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
 .receipt-meta {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink-soft);
   margin-bottom: 4px;
 }
+.receipt-table th, .receipt-table td { padding: 6px 4px; font-size: 12.5px; }
 
 @media print {
+  @page { size: 80mm auto; margin: 4mm; }
   .app-sidebar, .app-header, .page-header, .no-print,
   .pos-grid, .btn-primary, .alert-success, .alert-error {
     display: none !important;
@@ -513,6 +519,8 @@ html[dir="rtl"] .sidebar-user { flex-direction: row-reverse; }
   .receipt-print {
     box-shadow: none !important;
     border: none !important;
+    width: 100% !important;
   }
+  .receipt-body { max-width: 100% !important; }
   body { background: #fff !important; }
 }

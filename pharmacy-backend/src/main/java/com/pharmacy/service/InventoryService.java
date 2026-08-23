@@ -30,6 +30,7 @@ public class InventoryService {
         medicine.setName(req.getName());
         medicine.setUnit(req.getUnit());
         medicine.setReorderLevel(req.getReorderLevel() != null ? req.getReorderLevel() : 10);
+        medicine.setPackSize(req.getPackSize() != null && req.getPackSize() > 0 ? req.getPackSize() : 1);
         medicine.setShop(currentUser.getShop());
 
         if (req.getCategoryId() != null) {
@@ -71,7 +72,7 @@ public class InventoryService {
         Long shopId = currentUser.getShop().getId();
         return query == null || query.isBlank()
                 ? medicineRepository.findByShopId(shopId)
-                : medicineRepository.findByShopIdAndNameContainingIgnoreCase(shopId, query);
+                : medicineRepository.searchByNameOrGeneric(shopId, query);
     }
 
     // --- Batches (stock) ---
