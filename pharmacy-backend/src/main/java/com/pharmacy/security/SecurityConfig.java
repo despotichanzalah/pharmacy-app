@@ -45,11 +45,15 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    // Allows the React dev server (localhost:5173) to call this API from the browser.
+    // Allows the React dev server AND the deployed frontend to call this API from the browser.
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:5173",       // local dev
+                "https://*.vercel.app"         // any Vercel deployment (preview + production)
+                // Add your custom domain here once you buy one, e.g. "https://hunypharmacy.com"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
