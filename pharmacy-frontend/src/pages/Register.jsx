@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import api from '../api.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
 
 export default function Register() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { t } = useLanguage()
+
+  // If we arrived here after a Google sign-in with no existing account, these are set.
+  const googleIdToken = location.state?.googleIdToken || null
+  const googleEmail = location.state?.googleEmail || ''
+  const googleName = location.state?.googleName || ''
+
   const [mode, setMode] = useState('create')
   const [shops, setShops] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const [form, setForm] = useState({
-    name: '', email: '', password: '', roleName: 'ADMIN', shopName: '', shopId: '',
+    name: googleName, email: googleEmail, password: '', roleName: 'ADMIN', shopName: '', shopId: '',
   })
 
   useEffect(() => {
@@ -36,16 +43,30 @@ export default function Register() {
     setError('')
     setLoading(true)
 
-    const payload = {
-      name: form.name,
-      email: form.email,
-      password: form.password,
-      roleName: form.roleName,
-      ...(mode === 'create' ? { shopName: form.shopName } : { shopId: Number(form.shopId) }),
-    }
-
     try {
-      const { data } = await api.post('/auth/register', payload)
+      let data;
+
+      if (googleIdToken) {
+        // Finishing account setup for a new Google sign-in — no password needed.
+        const payload = {
+          idToken: googleIdToken,
+          roleName: form.roleName,
+          ...(mode === 'create' ? { shopName: form.shopName } : { shopId: Number(form.shopId) }),
+        }
+        const res = await api.post('/auth/google/register', payload)
+        data = res.data
+      } else {
+        const payload = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          roleName: form.roleName,
+          ...(mode === 'create' ? { shopName: form.shopName } : { shopId: Number(form.shopId) }),
+        }
+        const res = await api.post('/auth/register', payload)
+        data = res.data
+      }
+
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data))
       navigate('/dashboard')
@@ -68,7 +89,11 @@ export default function Register() {
 
       <div className="auth-card">
         <h1>{t('createYourAccount')}</h1>
-        <p className="lede">{t('createAccountSub')}</p>
+        <p className="lede">
+          {googleIdToken
+            ? `Signed in with Google as ${googleEmail}. Just pick your shop to finish.`
+            : t('createAccountSub')}
+        </p>
 
         {error && <div className="alert-error">{error}</div>}
 
@@ -82,20 +107,24 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label htmlFor="name">{t('yourName')}</label>
-            <input id="name" required value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="Huny" />
-          </div>
+          {!googleIdToken && (
+            <>
+              <div className="field">
+                <label htmlFor="name">{t('yourName')}</label>
+                <input id="name" required value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="Huny" />
+              </div>
 
-          <div className="field">
-            <label htmlFor="email">{t('email')}</label>
-            <input id="email" type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="you@shop.com" />
-          </div>
+              <div className="field">
+                <label htmlFor="email">{t('email')}</label>
+                <input id="email" type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="you@shop.com" />
+              </div>
 
-          <div className="field">
-            <label htmlFor="password">{t('password')}</label>
-            <input id="password" type="password" required minLength={6} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="••••••••" />
-          </div>
+              <div className="field">
+                <label htmlFor="password">{t('password')}</label>
+                <input id="password" type="password" required minLength={6} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="••••••••" />
+              </div>
+            </>
+          )}
 
           {mode === 'create' ? (
             <div className="field">

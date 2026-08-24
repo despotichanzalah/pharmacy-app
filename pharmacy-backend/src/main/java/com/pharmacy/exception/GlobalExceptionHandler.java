@@ -1,5 +1,6 @@
 package com.pharmacy.exception;
 
+import com.pharmacy.exception.GoogleAccountNotRegisteredException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(GoogleAccountNotRegisteredException.class)
+    public ResponseEntity<Map<String, Object>> handleGoogleNotRegistered(GoogleAccountNotRegisteredException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "needsRegistration", true,
+                "email", ex.getEmail(),
+                "name", ex.getName() != null ? ex.getName() : ""
+        ));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

@@ -32,6 +32,13 @@ public class User {
     @JoinColumn(name = "shop_id", nullable = false)
     private Shop shop;
 
+    // Password reset — token + expiry, both null unless a reset is in progress.
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
