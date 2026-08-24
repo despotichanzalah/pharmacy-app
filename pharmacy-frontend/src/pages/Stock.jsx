@@ -3,16 +3,17 @@ import api from '../api.js'
 import Layout from '../components/Layout.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
+const EMPTY_FORM = { medicineId: '', batchNumber: '', quantity: '', purchasePrice: '', salePrice: '', expiryDate: '' }
+
 export default function Stock() {
   const [tab, setTab] = useState('all')
   const [batches, setBatches] = useState([])
   const [medicines, setMedicines] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    medicineId: '', batchNumber: '', quantity: '', purchasePrice: '', salePrice: '', expiryDate: '',
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [entryMode, setEntryMode] = useState('units') // 'units' | 'packs'
   const [packsCount, setPacksCount] = useState('')
   const [priceMode, setPriceMode] = useState('perUnit') // 'perUnit' | 'perPack'
@@ -41,6 +42,42 @@ export default function Stock() {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+  function resetPackHelpers() {
+    setEntryMode('units')
+    setPacksCount('')
+    setPriceMode('perUnit')
+    setPackPurchasePrice('')
+    setPackSalePrice('')
+  }
+
+  function startAdd() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    resetPackHelpers()
+    setError('')
+    setShowForm(true)
+  }
+
+  function startEdit(b) {
+    setEditingId(b.id)
+    setForm({
+      medicineId: b.medicine?.id || '',
+      batchNumber: b.batchNumber,
+      quantity: b.quantity,
+      purchasePrice: b.purchasePrice,
+      salePrice: b.salePrice,
+      expiryDate: b.expiryDate,
+    })
+    resetPackHelpers() // edits always use direct per-unit values, for clarity on exactly what's stored
+    setError('')
+    setShowForm(true)
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingId(null)
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -49,23 +86,34 @@ export default function Stock() {
     const finalPurchasePrice = priceMode === 'perPack' ? Number(packPurchasePrice) / packSize : Number(form.purchasePrice)
     const finalSalePrice = priceMode === 'perPack' ? Number(packSalePrice) / packSize : Number(form.salePrice)
     try {
-      await api.post('/batches', {
+      const payload = {
         ...form,
         medicineId: Number(form.medicineId),
         quantity: finalQuantity,
         purchasePrice: finalPurchasePrice,
         salePrice: finalSalePrice,
-      })
-      setForm({ medicineId: '', batchNumber: '', quantity: '', purchasePrice: '', salePrice: '', expiryDate: '' })
-      setPacksCount('')
-      setPackPurchasePrice('')
-      setPackSalePrice('')
-      setShowForm(false)
+      }
+      if (editingId) {
+        await api.put(`/batches/${editingId}`, payload)
+      } else {
+        await api.post('/batches', payload)
+      }
+      cancelForm()
       loadBatches(tab)
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not add the batch.')
+      setError(err.response?.data?.error || 'Could not save the batch.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(b) {
+    if (!window.confirm(`Delete batch ${b.batchNumber}? This can't be undone.`)) return
+    try {
+      await api.delete(`/batches/${b.id}`)
+      loadBatches(tab)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not delete this batch.')
     }
   }
 
@@ -73,16 +121,16 @@ export default function Stock() {
     <Layout
       title="Stock"
       subtitle="Batches carry expiry, cost, and sale price for every strip of stock."
-      actions={<button className="btn-primary btn-compact" onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : '+ Add batch'}</button>}
+      actions={<button className="btn-primary btn-compact" onClick={() => (showForm ? cancelForm() : startAdd())}>{showForm ? 'Cancel' : '+ Add batch'}</button>}
     >
       {showForm && (
         <div className="panel">
-          <div className="panel-head"><h3>New batch</h3></div>
+          <div className="panel-head"><h3>{editingId ? 'Edit batch' : 'New batch'}</h3></div>
           {error && <div className="alert-error">{error}</div>}
           <form className="form-grid" onSubmit={handleSubmit}>
             <div className="field">
               <label>Medicine</label>
-              <select required value={form.medicineId} onChange={(e) => update('medicineId', e.target.value)}>
+              <select required value={form.medicineId} onChange={(e) => update('medicineId', e.target.value)} disabled={!!editingId}>
                 <option value="" disabled>Select medicine…</option>
                 {medicines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
@@ -92,14 +140,14 @@ export default function Stock() {
               <input required value={form.batchNumber} onChange={(e) => update('batchNumber', e.target.value)} placeholder="BATCH001" />
             </div>
 
-            {packSize > 1 && (
+            {!editingId && packSize > 1 && (
               <div className="tab-row" style={{ marginBottom: 0 }}>
                 <button type="button" className={`tab-pill ${entryMode === 'units' ? 'active' : ''}`} onClick={() => setEntryMode('units')}>Enter loose units</button>
                 <button type="button" className={`tab-pill ${entryMode === 'packs' ? 'active' : ''}`} onClick={() => setEntryMode('packs')}>Enter packs (×{packSize})</button>
               </div>
             )}
 
-            {entryMode === 'packs' && packSize > 1 ? (
+            {!editingId && entryMode === 'packs' && packSize > 1 ? (
               <div className="field">
                 <label>Number of packs</label>
                 <input required type="number" min="1" value={packsCount} onChange={(e) => setPacksCount(e.target.value)} placeholder={`e.g. 5 strips of ${packSize}`} />
@@ -117,14 +165,14 @@ export default function Stock() {
               <input required type="date" value={form.expiryDate} onChange={(e) => update('expiryDate', e.target.value)} />
             </div>
 
-            {packSize > 1 && (
+            {!editingId && packSize > 1 && (
               <div className="tab-row" style={{ marginBottom: 0 }}>
                 <button type="button" className={`tab-pill ${priceMode === 'perUnit' ? 'active' : ''}`} onClick={() => setPriceMode('perUnit')}>Price per unit</button>
                 <button type="button" className={`tab-pill ${priceMode === 'perPack' ? 'active' : ''}`} onClick={() => setPriceMode('perPack')}>Price per pack</button>
               </div>
             )}
 
-            {priceMode === 'perPack' && packSize > 1 ? (
+            {!editingId && priceMode === 'perPack' && packSize > 1 ? (
               <>
                 <div className="field">
                   <label>Purchase price (per pack)</label>
@@ -149,8 +197,9 @@ export default function Stock() {
                 </div>
               </>
             )}
-            <div className="form-actions">
-              <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save batch'}</button>
+            <div className="form-actions" style={{ gap: 10 }}>
+              <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Save batch'}</button>
+              <button className="btn-secondary" type="button" onClick={cancelForm}>Cancel</button>
             </div>
           </form>
         </div>
@@ -168,7 +217,7 @@ export default function Stock() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Medicine</th><th>Batch #</th><th>Qty</th><th>Expiry</th><th>Purchase</th><th>Sale</th></tr>
+              <tr><th>Medicine</th><th>Batch #</th><th>Qty</th><th>Expiry</th><th>Purchase</th><th>Sale</th><th></th></tr>
             </thead>
             <tbody>
               {batches.map((b) => (
@@ -179,6 +228,10 @@ export default function Stock() {
                   <td>{b.expiryDate}</td>
                   <td>Rs {b.purchasePrice}</td>
                   <td>Rs {b.salePrice}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="link-danger" style={{ color: 'var(--primary-dark)', marginRight: 14 }} onClick={() => startEdit(b)}>Edit</button>
+                    <button className="link-danger" onClick={() => handleDelete(b)}>Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -10,6 +10,7 @@ import com.pharmacy.repository.UserRepository;
 import com.pharmacy.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +41,17 @@ public class InventoryController {
         return inventoryService.searchMedicines(query, currentUser(auth));
     }
 
+    @PutMapping("/medicines/{id}")
+    public Medicine updateMedicine(@PathVariable Long id, @Valid @RequestBody MedicineRequest request, Authentication auth) {
+        return inventoryService.updateMedicine(id, request, currentUser(auth));
+    }
+
+    @DeleteMapping("/medicines/{id}")
+    public ResponseEntity<Void> deleteMedicine(@PathVariable Long id, Authentication auth) {
+        inventoryService.deleteMedicine(id, currentUser(auth));
+        return ResponseEntity.noContent().build();
+    }
+
     // --- Batches / stock ---
 
     @PostMapping("/batches")
@@ -62,5 +74,16 @@ public class InventoryController {
         return medicineId != null
                 ? inventoryService.batchesForMedicine(medicineId, currentUser(auth))
                 : inventoryService.allBatches(currentUser(auth));
+    }
+
+    @PutMapping("/batches/{id}")
+    public Batch updateBatch(@PathVariable Long id, @Valid @RequestBody BatchRequest request, Authentication auth) {
+        return inventoryService.updateBatch(id, request, currentUser(auth));
+    }
+
+    @DeleteMapping("/batches/{id}")
+    public ResponseEntity<Void> deleteBatch(@PathVariable Long id, Authentication auth) {
+        inventoryService.deleteBatch(id, currentUser(auth));
+        return ResponseEntity.noContent().build();
     }
 }

@@ -10,4 +10,5 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     List<Batch> findByShopId(Long shopId);
     List<Batch> findByShopIdAndExpiryDateBefore(Long shopId, LocalDate date);
     List<Batch> findByShopIdAndQuantityLessThanEqual(Long shopId, Integer quantity);
+    boolean existsByMedicineId(Long medicineId);
 }

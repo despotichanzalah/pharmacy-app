@@ -22,16 +22,34 @@ public class InventoryService {
     private final BatchRepository batchRepository;
     private final SupplierRepository supplierRepository;
     private final GenericRepository genericRepository;
+    private final SaleItemRepository saleItemRepository;
 
     // --- Medicines ---
 
     public Medicine addMedicine(MedicineRequest req, User currentUser) {
         Medicine medicine = new Medicine();
+        medicine.setShop(currentUser.getShop());
+        applyMedicineFields(medicine, req);
+        return medicineRepository.save(medicine);
+    }
+
+    public Medicine updateMedicine(Long id, MedicineRequest req, User currentUser) {
+        Medicine medicine = medicineRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found"));
+
+        if (!medicine.getShop().getId().equals(currentUser.getShop().getId())) {
+            throw new IllegalArgumentException("Medicine does not belong to your shop");
+        }
+
+        applyMedicineFields(medicine, req);
+        return medicineRepository.save(medicine);
+    }
+
+    private void applyMedicineFields(Medicine medicine, MedicineRequest req) {
         medicine.setName(req.getName());
         medicine.setUnit(req.getUnit());
         medicine.setReorderLevel(req.getReorderLevel() != null ? req.getReorderLevel() : 10);
         medicine.setPackSize(req.getPackSize() != null && req.getPackSize() > 0 ? req.getPackSize() : 1);
-        medicine.setShop(currentUser.getShop());
 
         if (req.getCategoryId() != null) {
             Category category = categoryRepository.findById(req.getCategoryId())
@@ -40,8 +58,24 @@ public class InventoryService {
         }
 
         medicine.setGenerics(resolveGenerics(req.getGenericIds(), req.getNewGenerics()));
+    }
 
-        return medicineRepository.save(medicine);
+    public void deleteMedicine(Long id, User currentUser) {
+        Medicine medicine = medicineRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found"));
+
+        if (!medicine.getShop().getId().equals(currentUser.getShop().getId())) {
+            throw new IllegalArgumentException("Medicine does not belong to your shop");
+        }
+
+        if (batchRepository.existsByMedicineId(id)) {
+            throw new IllegalArgumentException("Cannot delete this medicine — it still has stock batches. Delete those first.");
+        }
+
+        // Clear the generics link table first so the delete doesn't hit a foreign-key error.
+        medicine.getGenerics().clear();
+        medicineRepository.save(medicine);
+        medicineRepository.delete(medicine);
     }
 
     // Turns a mix of existing generic IDs and freshly-typed generic names into a single set,
@@ -87,19 +121,50 @@ public class InventoryService {
 
         Batch batch = new Batch();
         batch.setMedicine(medicine);
+        batch.setShop(currentUser.getShop());
+        applyBatchFields(batch, req);
+        return batchRepository.save(batch);
+    }
+
+    public Batch updateBatch(Long id, BatchRequest req, User currentUser) {
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+
+        if (!batch.getShop().getId().equals(currentUser.getShop().getId())) {
+            throw new IllegalArgumentException("Batch does not belong to your shop");
+        }
+
+        applyBatchFields(batch, req);
+        return batchRepository.save(batch);
+    }
+
+    private void applyBatchFields(Batch batch, BatchRequest req) {
         batch.setBatchNumber(req.getBatchNumber());
         batch.setExpiryDate(req.getExpiryDate());
         batch.setQuantity(req.getQuantity());
         batch.setPurchasePrice(req.getPurchasePrice());
         batch.setSalePrice(req.getSalePrice());
-        batch.setShop(currentUser.getShop());
 
         if (req.getSupplierId() != null) {
             Supplier supplier = supplierRepository.findById(req.getSupplierId())
                     .orElseThrow(() -> new ResourceNotFoundException("Supplier not found"));
             batch.setSupplier(supplier);
         }
-        return batchRepository.save(batch);
+    }
+
+    public void deleteBatch(Long id, User currentUser) {
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+
+        if (!batch.getShop().getId().equals(currentUser.getShop().getId())) {
+            throw new IllegalArgumentException("Batch does not belong to your shop");
+        }
+
+        if (saleItemRepository.existsByBatchId(id)) {
+            throw new IllegalArgumentException("Cannot delete this batch — sales have already been recorded against it. You can still edit its quantity.");
+        }
+
+        batchRepository.delete(batch);
     }
 
     public List<Batch> lowStockBatches(int threshold, User currentUser) {

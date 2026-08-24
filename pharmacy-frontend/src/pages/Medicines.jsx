@@ -3,14 +3,17 @@ import api from '../api.js'
 import Layout from '../components/Layout.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 
+const EMPTY_FORM = { name: '', unit: '', reorderLevel: 10, packSize: 1 }
+
 export default function Medicines() {
   const [medicines, setMedicines] = useState([])
   const [genericsList, setGenericsList] = useState([])
   const [query, setQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', unit: '', reorderLevel: 10, packSize: 1 })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [selectedGenerics, setSelectedGenerics] = useState([]) // [{ id, name }] or [{ name, isNew: true }]
   const [genericInput, setGenericInput] = useState('')
 
@@ -43,27 +46,61 @@ export default function Medicines() {
     setSelectedGenerics((list) => list.filter((g) => g.name !== name))
   }
 
+  function startAdd() {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    setSelectedGenerics([])
+    setError('')
+    setShowForm(true)
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id)
+    setForm({ name: m.name, unit: m.unit || '', reorderLevel: m.reorderLevel, packSize: m.packSize || 1 })
+    setSelectedGenerics((m.generics || []).map((g) => ({ id: g.id, name: g.name })))
+    setError('')
+    setShowForm(true)
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditingId(null)
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setSaving(true)
+    const payload = {
+      ...form,
+      reorderLevel: Number(form.reorderLevel),
+      packSize: Number(form.packSize) || 1,
+      genericIds: selectedGenerics.filter((g) => g.id).map((g) => g.id),
+      newGenerics: selectedGenerics.filter((g) => g.isNew).map((g) => g.name),
+    }
     try {
-      await api.post('/medicines', {
-        ...form,
-        reorderLevel: Number(form.reorderLevel),
-        packSize: Number(form.packSize) || 1,
-        genericIds: selectedGenerics.filter((g) => g.id).map((g) => g.id),
-        newGenerics: selectedGenerics.filter((g) => g.isNew).map((g) => g.name),
-      })
-      setForm({ name: '', unit: '', reorderLevel: 10, packSize: 1 })
-      setSelectedGenerics([])
-      setShowForm(false)
+      if (editingId) {
+        await api.put(`/medicines/${editingId}`, payload)
+      } else {
+        await api.post('/medicines', payload)
+      }
+      cancelForm()
       load(query)
       api.get('/generics').then(({ data }) => setGenericsList(data)) // pick up any newly created generics
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not add the medicine.')
+      setError(err.response?.data?.error || 'Could not save the medicine.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(m) {
+    if (!window.confirm(`Delete "${m.name}"? This can't be undone.`)) return
+    try {
+      await api.delete(`/medicines/${m.id}`)
+      load(query)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not delete this medicine.')
     }
   }
 
@@ -71,11 +108,11 @@ export default function Medicines() {
     <Layout
       title="Medicines"
       subtitle="Your shop's catalog — search, add, and keep names consistent for stock and sales."
-      actions={<button className="btn-primary btn-compact" onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : '+ Add medicine'}</button>}
+      actions={<button className="btn-primary btn-compact" onClick={() => (showForm ? cancelForm() : startAdd())}>{showForm ? 'Cancel' : '+ Add medicine'}</button>}
     >
       {showForm && (
         <div className="panel">
-          <div className="panel-head"><h3>New medicine</h3></div>
+          <div className="panel-head"><h3>{editingId ? 'Edit medicine' : 'New medicine'}</h3></div>
           {error && <div className="alert-error">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
@@ -127,8 +164,9 @@ export default function Medicines() {
               )}
             </div>
 
-            <div className="form-actions" style={{ marginTop: 18 }}>
-              <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save medicine'}</button>
+            <div className="form-actions" style={{ marginTop: 18, gap: 10 }}>
+              <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Save medicine'}</button>
+              <button className="btn-secondary" type="button" onClick={cancelForm}>Cancel</button>
             </div>
           </form>
         </div>
@@ -139,7 +177,7 @@ export default function Medicines() {
           <h3>Catalog</h3>
           <input
             className="search-input"
-            placeholder="Search medicines…"
+            placeholder="Search medicines or generics…"
             value={query}
             onChange={(e) => { setQuery(e.target.value); load(e.target.value) }}
           />
@@ -150,7 +188,7 @@ export default function Medicines() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>Name</th><th>Generic(s)</th><th>Unit</th><th>Pack size</th><th>Reorder level</th></tr>
+              <tr><th>Name</th><th>Generic(s)</th><th>Unit</th><th>Pack size</th><th>Reorder level</th><th></th></tr>
             </thead>
             <tbody>
               {medicines.map((m) => (
@@ -164,6 +202,10 @@ export default function Medicines() {
                   <td>{m.unit || '—'}</td>
                   <td>{m.packSize > 1 ? `${m.packSize} per pack` : 'Single unit'}</td>
                   <td>{m.reorderLevel}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="link-danger" style={{ color: 'var(--primary-dark)', marginRight: 14 }} onClick={() => startEdit(m)}>Edit</button>
+                    <button className="link-danger" onClick={() => handleDelete(m)}>Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
