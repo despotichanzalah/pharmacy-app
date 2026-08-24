@@ -50,10 +50,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
-                "http://localhost:5173",       // local dev
-                "https://*.vercel.app" 
-                "https://*.netlify.app"        // any Netlify deployment (preview + production)        // any Vercel deployment (preview + production)
-                // Add your custom domain here once you buy one, e.g. "https://hunypharmacy.com"
+                "http://localhost:5173",
+                "https://*.vercel.app",
+                "https://*.netlify.app"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
