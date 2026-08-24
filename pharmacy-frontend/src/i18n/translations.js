@@ -37,6 +37,7 @@ export const translations = {
     suppliers: 'Suppliers',
     purchases: 'Purchases',
     reports: 'Reports',
+    staff: 'Staff',
     signOut: 'Sign out',
     // Common actions
     add: 'Add',
@@ -83,6 +84,7 @@ export const translations = {
     suppliers: 'سپلائرز',
     purchases: 'خریداری',
     reports: 'رپورٹس',
+    staff: 'عملہ',
     signOut: 'سائن آؤٹ',
     add: 'شامل کریں',
     save: 'محفوظ کریں',

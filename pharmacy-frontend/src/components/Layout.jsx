@@ -16,6 +16,7 @@ export default function Layout({ children, title, subtitle, actions }) {
     { to: '/dashboard/suppliers', label: t('suppliers'), icon: '⌂' },
     { to: '/dashboard/purchases', label: t('purchases'), icon: '▣' },
     { to: '/dashboard/reports', label: t('reports'), icon: '▲' },
+    ...(user.role === 'ADMIN' ? [{ to: '/dashboard/staff', label: t('staff') || 'Staff', icon: '◈' }] : []),
   ]
 
   function logout() {

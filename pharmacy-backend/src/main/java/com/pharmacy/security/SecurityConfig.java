@@ -50,9 +50,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
-                "http://localhost:5173",
-                "https://*.vercel.app",
-                "https://*.netlify.app"
+                "http://localhost:5173",       // local dev
+                "https://*.vercel.app",        // any Vercel deployment (preview + production)
+                "https://*.netlify.app"        // any Netlify deployment (preview + production)
+                // Add your custom domain here once you buy one, e.g. "https://hunypharmacy.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -71,7 +72,9 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/shops").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/shops").permitAll()
+                .requestMatchers("/api/shops/mine").hasRole("ADMIN")
+                .requestMatchers("/api/users/**").hasRole("ADMIN")
                 .requestMatchers("/api/reports/**").hasRole("ADMIN")
                 .requestMatchers("/api/suppliers/**", "/api/purchases/**").hasAnyRole("ADMIN", "PHARMACIST")
                 .anyRequest().authenticated()

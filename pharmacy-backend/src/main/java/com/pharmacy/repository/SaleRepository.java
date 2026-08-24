@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface SaleRepository extends JpaRepository<Sale, Long> {
+    List<Sale> findByShopId(Long shopId);
     List<Sale> findByShopIdAndSaleDateBetween(Long shopId, LocalDateTime start, LocalDateTime end);
     List<Sale> findByShopIdOrderBySaleDateDesc(Long shopId);
 }

@@ -9,6 +9,7 @@ import Returns from './pages/Returns.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 import Purchases from './pages/Purchases.jsx'
 import Reports from './pages/Reports.jsx'
+import Staff from './pages/Staff.jsx'
 
 function isLoggedIn() {
   return !!localStorage.getItem('token')
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/dashboard/suppliers" element={<Protected><Suppliers /></Protected>} />
         <Route path="/dashboard/purchases" element={<Protected><Purchases /></Protected>} />
         <Route path="/dashboard/reports" element={<Protected><Reports /></Protected>} />
+        <Route path="/dashboard/staff" element={<Protected><Staff /></Protected>} />
 
         <Route path="*" element={<Navigate to={isLoggedIn() ? '/dashboard' : '/login'} replace />} />
       </Routes>
