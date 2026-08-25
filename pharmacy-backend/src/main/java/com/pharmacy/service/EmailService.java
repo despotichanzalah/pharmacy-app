@@ -1,30 +1,37 @@
 package com.pharmacy.service;
 
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-    private final JavaMailSender mailSender;
+    @Value("${brevo.api-key}")
+    private String apiKey;
+
+    @Value("${app.mail-from}")
+    private String fromAddress;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    @Value("${app.mail-from}")
-    private String fromAddress;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String token) {
@@ -46,15 +53,25 @@ public class EmailService {
     }
 
     private void send(String to, String subject, String body) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("BREVO_API_KEY is not set — skipping email to {}", to);
+            return;
+        }
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("api-key", apiKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("accept", "application/json");
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("sender", Map.of("email", fromAddress, "name", "Huny Pharmacy"));
+            payload.put("to", List.of(Map.of("email", to)));
+            payload.put("subject", subject);
+            payload.put("textContent", body);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            restTemplate.postForEntity(BREVO_API_URL, request, String.class);
         } catch (Exception e) {
-            // Never let an email failure break login/registration/reset flows.
             log.warn("Failed to send email to {}: {}", to, e.getMessage());
         }
     }
