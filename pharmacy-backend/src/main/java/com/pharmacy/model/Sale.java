@@ -25,6 +25,12 @@ public class Sale {
     @Column(name = "customer_name")
     private String customerName;
 
+    @Column(name = "subtotal_amount")
+    private BigDecimal subtotalAmount;
+
+    @Column(name = "discount_percent", precision = 5, scale = 2)
+    private BigDecimal discountPercent = BigDecimal.ZERO;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 

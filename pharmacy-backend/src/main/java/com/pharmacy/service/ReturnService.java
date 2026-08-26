@@ -57,7 +57,8 @@ public class ReturnService {
             returnItem.setQuantity(itemReq.getQuantity());
             returnItemRepository.save(returnItem);
 
-            refund = refund.add(saleItem.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity())));
+            BigDecimal line = saleItem.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            refund = refund.add(SalesService.applyDiscount(line, sale.getDiscountPercent()));
         }
 
         returnEntity.setRefundAmount(refund);

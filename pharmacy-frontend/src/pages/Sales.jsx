@@ -12,6 +12,7 @@ export default function Sales() {
   const [pickBatchId, setPickBatchId] = useState('')
   const [pickQty, setPickQty] = useState(1)
   const [pickMode, setPickMode] = useState('units') // 'units' | 'packs'
+  const [discountPercent, setDiscountPercent] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
@@ -59,22 +60,31 @@ export default function Sales() {
     setCart(cart.filter((c) => c.batchId !== batchId))
   }
 
-  const total = cart.reduce((sum, c) => sum + c.quantity * c.batch.salePrice, 0)
+  const subtotal = cart.reduce((sum, c) => sum + c.quantity * c.batch.salePrice, 0)
+  const discountValue = Math.min(100, Math.max(0, Number(discountPercent) || 0))
+  const discountAmount = subtotal * discountValue / 100
+  const total = subtotal - discountAmount
 
   async function completeSale() {
     setError('')
     setSuccess('')
     if (cart.length === 0) { setError('Add at least one item to the cart.'); return }
+    if (discountValue < 0 || discountValue > 100) {
+      setError('Discount must be between 0 and 100 percent.')
+      return
+    }
     setSaving(true)
     try {
       const { data } = await api.post('/sales', {
         customerName,
+        discountPercent: discountValue,
         items: cart.map((c) => ({ batchId: c.batchId, quantity: c.quantity })),
       })
       setSuccess(`Sale #${data.id} completed — Rs ${data.totalAmount}`)
-      setReceipt({ sale: data, items: cart, customerName })
+      setReceipt({ sale: data, items: cart, customerName, discountPercent: discountValue, subtotal })
       setCart([])
       setCustomerName('')
+      setDiscountPercent('')
       loadAll()
     } catch (err) {
       setError(err.response?.data?.error || 'Could not complete the sale.')
@@ -160,6 +170,30 @@ export default function Sales() {
             <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Walk-in customer" />
           </div>
 
+          <div className="field">
+            <label>Discount (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              placeholder="0"
+            />
+            <div className="field-hint">Optional — applied to the whole cart before checkout.</div>
+          </div>
+
+          <div className="cart-breakdown">
+            <div className="cart-line"><span>Subtotal</span><span>Rs {subtotal.toFixed(2)}</span></div>
+            {discountValue > 0 && (
+              <div className="cart-line cart-line-discount">
+                <span>Discount ({discountValue}%)</span>
+                <span>− Rs {discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
           <div className="cart-total">
             <span>Total</span>
             <span>Rs {total.toFixed(2)}</span>
@@ -202,6 +236,22 @@ export default function Sales() {
                 ))}
               </tbody>
             </table>
+
+            <div className="cart-breakdown">
+              <div className="cart-line">
+                <span>Subtotal</span>
+                <span>Rs {(receipt.sale.subtotalAmount ?? receipt.subtotal ?? receipt.sale.totalAmount)}</span>
+              </div>
+              {Number(receipt.sale.discountPercent || receipt.discountPercent || 0) > 0 && (
+                <div className="cart-line cart-line-discount">
+                  <span>Discount ({Number(receipt.sale.discountPercent || receipt.discountPercent)}%)</span>
+                  <span>− Rs {(
+                    Number(receipt.sale.subtotalAmount ?? receipt.subtotal ?? 0)
+                    - Number(receipt.sale.totalAmount)
+                  ).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
 
             <div className="cart-total">
               <span>Total</span>

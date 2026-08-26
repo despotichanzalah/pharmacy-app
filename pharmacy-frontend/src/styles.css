@@ -1256,6 +1256,25 @@ input[type="month"]:focus {
     }
 }
 
+.cart-breakdown {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.cart-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--ink-soft, #6b7280);
+    padding: 4px 4px;
+}
+
+.cart-line-discount {
+    color: var(--good, #22a06b);
+    font-weight: 700;
+}
+
 .cart-total {
     display: flex;
     justify-content: space-between;
