@@ -61,6 +61,9 @@ class _OverviewTabState extends State<OverviewTab> {
     }
   }
 
+  // Called by DashboardScreen every time this tab becomes visible.
+  void reload() => _load();
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());

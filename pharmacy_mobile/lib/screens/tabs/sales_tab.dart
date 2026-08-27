@@ -1,4 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../main.dart';
 import '../../services/api_service.dart';
 
@@ -49,6 +53,10 @@ class _SalesTabState extends State<SalesTab> {
       setState(() => _loading = false);
     }
   }
+
+  // Called by DashboardScreen every time this tab becomes visible, so a
+  // newly added medicine and its current stock are never stale here.
+  void reload() => _load();
 
   String _medicineName(dynamic medicineId) {
     final m = _medicines.firstWhere((m) => m['id'] == medicineId, orElse: () => null);
@@ -125,6 +133,68 @@ class _SalesTabState extends State<SalesTab> {
     }
   }
 
+  // Builds a narrow (80mm) receipt PDF, matching the web app's thermal-printer sizing,
+  // and hands it to Android's native print/share sheet (works with connected printers,
+  // or lets the user save/share it as a PDF).
+  Future<Uint8List> _buildReceiptPdf() async {
+    final sale = _lastReceipt!['sale'];
+    final items = _lastReceipt!['items'] as List;
+    final discountPercent = _lastReceipt!['discountPercent'] as double;
+    final subtotal = _lastReceipt!['subtotal'] as double;
+    final customerName = _lastReceipt!['customerName'] as String;
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, double.infinity, marginAll: 8 * PdfPageFormat.mm),
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Center(child: pw.Text('Huny Pharmacy', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold))),
+            pw.Center(child: pw.Text('Sale #${sale['id']}', style: const pw.TextStyle(fontSize: 9))),
+            if (customerName.isNotEmpty) pw.Center(child: pw.Text('Customer: $customerName', style: const pw.TextStyle(fontSize: 9))),
+            pw.Divider(),
+            ...items.map((it) => pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Expanded(child: pw.Text('${it['medicineName']} x${it['quantity']}', style: const pw.TextStyle(fontSize: 9))),
+                      pw.Text('Rs ${(it['lineTotal'] as double).toStringAsFixed(0)}', style: const pw.TextStyle(fontSize: 9)),
+                    ],
+                  ),
+                )),
+            pw.Divider(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Subtotal', style: const pw.TextStyle(fontSize: 9)),
+                pw.Text('Rs ${subtotal.toStringAsFixed(0)}', style: const pw.TextStyle(fontSize: 9)),
+              ],
+            ),
+            if (discountPercent > 0)
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Discount ($discountPercent%)', style: const pw.TextStyle(fontSize: 9)),
+                  pw.Text('- Rs ${(subtotal * discountPercent / 100).toStringAsFixed(0)}', style: const pw.TextStyle(fontSize: 9)),
+                ],
+              ),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Total', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Rs ${sale['totalAmount']}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    return doc.save();
+  }
+
   void _showReceipt() {
     if (_lastReceipt == null) return;
     showModalBottomSheet(
@@ -194,9 +264,23 @@ class _SalesTabState extends State<SalesTab> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final bytes = await _buildReceiptPdf();
+                              await Printing.layoutPdf(onLayout: (_) async => bytes);
+                            },
+                            icon: const Icon(Icons.print),
+                            label: const Text('Print / Share'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -224,8 +308,8 @@ class _SalesTabState extends State<SalesTab> {
           ),
 
         // Medicine search — type a brand or generic name, no scrolling through hundreds of items.
-        Autocomplete<dynamic>(
-          optionsBuilder: (value) => _searchMedicines(value.text),
+        Autocomplete<Map<String, dynamic>>(
+          optionsBuilder: (value) => _searchMedicines(value.text).cast<Map<String, dynamic>>(),
           displayStringForOption: (m) => m['name'],
           fieldViewBuilder: (ctx, controller, focusNode, onSubmit) {
             return TextField(
@@ -373,7 +457,8 @@ class _SalesTabState extends State<SalesTab> {
                     value: selectedBatch,
                     decoration: const InputDecoration(labelText: 'Batch'),
                     items: batches
-                        .map((b) => DropdownMenuItem(value: b, child: Text('${b['batchNumber']} — ${b['quantity']} left — Rs ${b['salePrice']}')))
+                        .cast<Map<String, dynamic>>()
+                        .map((b) => DropdownMenuItem<Map<String, dynamic>>(value: b, child: Text('${b['batchNumber']} — ${b['quantity']} left — Rs ${b['salePrice']}')))
                         .toList(),
                     onChanged: (v) => setSheetState(() => selectedBatch = v),
                   )

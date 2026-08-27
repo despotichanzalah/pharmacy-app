@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'sales_history_screen.dart';
 import 'tabs/overview_tab.dart';
 import 'tabs/medicines_tab.dart';
 import 'tabs/stock_tab.dart';
@@ -21,6 +22,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, String?> _user = {};
 
   final _titles = ['Overview', 'Medicines', 'Stock', 'Sales'];
+  final _overviewKey = GlobalKey();
+  final _medicinesKey = GlobalKey();
+  final _stockKey = GlobalKey();
+  final _salesKey = GlobalKey();
+
+  void _reloadTab(int index) {
+    final keys = [_overviewKey, _medicinesKey, _stockKey, _salesKey];
+    // Dynamic call — each tab exposes its own reload(), avoiding needing to
+    // name their (private) State classes here.
+    (keys[index].currentState as dynamic)?.reload();
+  }
 
   @override
   void initState() {
@@ -40,10 +52,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      const OverviewTab(),
-      const MedicinesTab(),
-      const StockTab(),
-      const SalesTab(),
+      OverviewTab(key: _overviewKey),
+      MedicinesTab(key: _medicinesKey),
+      StockTab(key: _stockKey),
+      SalesTab(key: _salesKey),
     ];
 
     return Scaffold(
@@ -85,6 +97,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const Divider(height: 1),
+              _drawerItem(Icons.receipt_long, 'Sales History', () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesHistoryScreen()));
+              }),
               _drawerItem(Icons.undo, 'Returns', () {}),
               _drawerItem(Icons.local_shipping, 'Suppliers', () {}),
               _drawerItem(Icons.shopping_bag, 'Purchases', () {}),
@@ -101,7 +117,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: IndexedStack(index: _tabIndex, children: tabs),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
-        onDestinationSelected: (i) => setState(() => _tabIndex = i),
+        onDestinationSelected: (i) {
+          setState(() => _tabIndex = i);
+          _reloadTab(i);
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Overview'),
           NavigationDestination(icon: Icon(Icons.medication_outlined), selectedIcon: Icon(Icons.medication), label: 'Medicines'),

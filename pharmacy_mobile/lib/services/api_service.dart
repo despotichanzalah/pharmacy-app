@@ -265,6 +265,14 @@ class ApiService {
       'items': items,
     });
   }
+
+  static Future<List<dynamic>> listSales() async {
+    return await get('/sales');
+  }
+
+  static Future<List<dynamic>> getSaleItems(int saleId) async {
+    return await get('/sales/$saleId/items');
+  }
 }
 
 class ApiException implements Exception {

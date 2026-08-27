@@ -32,6 +32,10 @@ class _MedicinesTabState extends State<MedicinesTab> {
     }
   }
 
+  // Called by DashboardScreen every time this tab becomes visible, so newly
+  // added/edited medicines (e.g. pack size) are never stale.
+  void reload() => _load(query: _query);
+
   void _openAddSheet({Map<String, dynamic>? editing}) {
     final isEditing = editing != null;
     final nameController = TextEditingController(text: editing?['name'] ?? '');

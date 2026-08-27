@@ -40,6 +40,13 @@ class _StockTabState extends State<StockTab> {
     }
   }
 
+  // Called by DashboardScreen every time this tab becomes visible, so a
+  // newly added medicine's pack size etc. is never stale here.
+  void reload() {
+    ApiService.getMedicines().then((m) => setState(() => _medicines = m));
+    _load();
+  }
+
   String _medicineName(dynamic medicineId) {
     final m = _medicines.firstWhere((m) => m['id'] == medicineId, orElse: () => null);
     return m != null ? m['name'] : '#$medicineId';

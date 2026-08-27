@@ -14,6 +14,7 @@ export default function Layout({ children, title, subtitle, actions }) {
     { to: '/dashboard/medicines', label: t('medicines'), icon: '⊕' },
     { to: '/dashboard/stock', label: t('stock'), icon: '▤' },
     { to: '/dashboard/sales', label: t('sales'), icon: '$' },
+    { to: '/dashboard/sales-history', label: 'Sales History', icon: '📋' },
     { to: '/dashboard/returns', label: t('returns'), icon: '↺' },
     { to: '/dashboard/suppliers', label: t('suppliers'), icon: '⌂' },
     { to: '/dashboard/purchases', label: t('purchases'), icon: '▣' },
