@@ -254,21 +254,13 @@ class ApiService {
 
   // ---------- Sales ----------
 
-  static Future<List<dynamic>> getSales() async {
-    return await get('/sales');
-  }
-
-  static Future<List<dynamic>> getSaleItems(int saleId) async {
-    return await get('/sales/$saleId/items');
-  }
-
   static Future<Map<String, dynamic>> createSale({
     String? customerName,
     double discountPercent = 0,
-    required List<Map<String, dynamic>> items,
+    required List<Map<String, dynamic>> items, // [{batchId, quantity}]
   }) async {
     return await post('/sales', {
-      if (customerName != null && customerName.isNotEmpty) 'customerName': customerName,
+      'customerName': customerName,
       'discountPercent': discountPercent,
       'items': items,
     });
