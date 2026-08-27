@@ -8,11 +8,11 @@ export default function Sales() {
   const [medicines, setMedicines] = useState([])
   const [batches, setBatches] = useState([])
   const [customerName, setCustomerName] = useState('')
+  const [discountPercent, setDiscountPercent] = useState(0)
   const [cart, setCart] = useState([])
   const [pickBatchId, setPickBatchId] = useState('')
   const [pickQty, setPickQty] = useState(1)
   const [pickMode, setPickMode] = useState('units') // 'units' | 'packs'
-  const [discountPercent, setDiscountPercent] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
@@ -61,30 +61,25 @@ export default function Sales() {
   }
 
   const subtotal = cart.reduce((sum, c) => sum + c.quantity * c.batch.salePrice, 0)
-  const discountValue = Math.min(100, Math.max(0, Number(discountPercent) || 0))
-  const discountAmount = subtotal * discountValue / 100
+  const discountAmount = subtotal * (Number(discountPercent) || 0) / 100
   const total = subtotal - discountAmount
 
   async function completeSale() {
     setError('')
     setSuccess('')
     if (cart.length === 0) { setError('Add at least one item to the cart.'); return }
-    if (discountValue < 0 || discountValue > 100) {
-      setError('Discount must be between 0 and 100 percent.')
-      return
-    }
     setSaving(true)
     try {
       const { data } = await api.post('/sales', {
         customerName,
-        discountPercent: discountValue,
+        discountPercent: Number(discountPercent) || 0,
         items: cart.map((c) => ({ batchId: c.batchId, quantity: c.quantity })),
       })
       setSuccess(`Sale #${data.id} completed — Rs ${data.totalAmount}`)
-      setReceipt({ sale: data, items: cart, customerName, discountPercent: discountValue, subtotal })
+      setReceipt({ sale: data, items: cart, customerName, discountPercent: Number(discountPercent) || 0, subtotal })
       setCart([])
       setCustomerName('')
-      setDiscountPercent('')
+      setDiscountPercent(0)
       loadAll()
     } catch (err) {
       setError(err.response?.data?.error || 'Could not complete the sale.')
@@ -165,38 +160,32 @@ export default function Sales() {
             </table>
           )}
 
-          <div className="field" style={{ marginTop: 18 }}>
-            <label>Customer name (optional)</label>
-            <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Walk-in customer" />
+          <div className="form-grid" style={{ marginTop: 18 }}>
+            <div className="field">
+              <label>Customer name (optional)</label>
+              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Walk-in customer" />
+            </div>
+            <div className="field">
+              <label>Discount %</label>
+              <input type="number" min="0" max="100" step="0.5" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} />
+            </div>
           </div>
 
-          <div className="field">
-            <label>Discount (%)</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={discountPercent}
-              onChange={(e) => setDiscountPercent(e.target.value)}
-              placeholder="0"
-            />
-            <div className="field-hint">Optional — applied to the whole cart before checkout.</div>
-          </div>
-
-          <div className="cart-breakdown">
-            <div className="cart-line"><span>Subtotal</span><span>Rs {subtotal.toFixed(2)}</span></div>
-            {discountValue > 0 && (
-              <div className="cart-line cart-line-discount">
-                <span>Discount ({discountValue}%)</span>
-                <span>− Rs {discountAmount.toFixed(2)}</span>
+          <div className="cart-total" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 500 }}>
+              <span>Subtotal</span>
+              <span>Rs {subtotal.toFixed(2)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: 'var(--bad-text)' }}>
+                <span>Discount ({Number(discountPercent)}%)</span>
+                <span>- Rs {discountAmount.toFixed(2)}</span>
               </div>
             )}
-          </div>
-
-          <div className="cart-total">
-            <span>Total</span>
-            <span>Rs {total.toFixed(2)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Total</span>
+              <span>Rs {total.toFixed(2)}</span>
+            </div>
           </div>
 
           <button className="btn-primary" onClick={completeSale} disabled={saving || cart.length === 0}>
@@ -237,25 +226,21 @@ export default function Sales() {
               </tbody>
             </table>
 
-            <div className="cart-breakdown">
-              <div className="cart-line">
+            <div className="cart-total" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span>Subtotal</span>
-                <span>Rs {(receipt.sale.subtotalAmount ?? receipt.subtotal ?? receipt.sale.totalAmount)}</span>
+                <span>Rs {receipt.subtotal.toFixed(2)}</span>
               </div>
-              {Number(receipt.sale.discountPercent || receipt.discountPercent || 0) > 0 && (
-                <div className="cart-line cart-line-discount">
-                  <span>Discount ({Number(receipt.sale.discountPercent || receipt.discountPercent)}%)</span>
-                  <span>− Rs {(
-                    Number(receipt.sale.subtotalAmount ?? receipt.subtotal ?? 0)
-                    - Number(receipt.sale.totalAmount)
-                  ).toFixed(2)}</span>
+              {receipt.discountPercent > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>Discount ({receipt.discountPercent}%)</span>
+                  <span>- Rs {(receipt.subtotal * receipt.discountPercent / 100).toFixed(2)}</span>
                 </div>
               )}
-            </div>
-
-            <div className="cart-total">
-              <span>Total</span>
-              <span>Rs {receipt.sale.totalAmount}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Total</span>
+                <span>Rs {receipt.sale.totalAmount}</span>
+              </div>
             </div>
           </div>
         </div>

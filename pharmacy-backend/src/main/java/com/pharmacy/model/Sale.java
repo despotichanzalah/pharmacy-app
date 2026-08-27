@@ -25,10 +25,9 @@ public class Sale {
     @Column(name = "customer_name")
     private String customerName;
 
-    @Column(name = "subtotal_amount")
-    private BigDecimal subtotalAmount;
-
-    @Column(name = "discount_percent", precision = 5, scale = 2)
+    // Percentage discount applied at checkout (0 if none). totalAmount already has this
+    // discount subtracted — this column is kept for receipts and reporting.
+    @Column(name = "discount_percent")
     private BigDecimal discountPercent = BigDecimal.ZERO;
 
     @Column(name = "total_amount", nullable = false)

@@ -12,14 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class SalesService {
-
-    private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final SaleRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
@@ -27,14 +23,12 @@ public class SalesService {
 
     @Transactional
     public Sale createSale(SaleRequest req, User cashier) {
-        BigDecimal discountPercent = normalizeDiscount(req.getDiscountPercent());
-
         Sale sale = new Sale();
         sale.setUser(cashier);
         sale.setShop(cashier.getShop());
         sale.setCustomerName(req.getCustomerName());
+        BigDecimal discountPercent = req.getDiscountPercent() != null ? req.getDiscountPercent() : BigDecimal.ZERO;
         sale.setDiscountPercent(discountPercent);
-        sale.setSubtotalAmount(BigDecimal.ZERO);
         sale.setTotalAmount(BigDecimal.ZERO);
         sale = saleRepository.save(sale);
 
@@ -65,37 +59,16 @@ public class SalesService {
             subtotal = subtotal.add(batch.getSalePrice().multiply(BigDecimal.valueOf(itemReq.getQuantity())));
         }
 
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = applyDiscount(subtotal, discountPercent);
-
-        sale.setSubtotalAmount(subtotal);
-        sale.setDiscountPercent(discountPercent);
-        sale.setTotalAmount(total);
+        BigDecimal discountAmount = subtotal.multiply(discountPercent).divide(BigDecimal.valueOf(100));
+        sale.setTotalAmount(subtotal.subtract(discountAmount));
         return saleRepository.save(sale);
     }
 
-    public List<Sale> listSales(User currentUser) {
+    public java.util.List<Sale> listSales(User currentUser) {
         return saleRepository.findByShopIdOrderBySaleDateDesc(currentUser.getShop().getId());
     }
 
-    public List<SaleItem> saleItems(Long saleId) {
+    public java.util.List<SaleItem> saleItems(Long saleId) {
         return saleItemRepository.findBySaleId(saleId);
-    }
-
-    static BigDecimal normalizeDiscount(BigDecimal discountPercent) {
-        BigDecimal value = discountPercent == null ? BigDecimal.ZERO : discountPercent;
-        if (value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(HUNDRED) > 0) {
-            throw new IllegalArgumentException("Discount must be between 0 and 100 percent");
-        }
-        return value.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    static BigDecimal applyDiscount(BigDecimal amount, BigDecimal discountPercent) {
-        BigDecimal percent = discountPercent == null ? BigDecimal.ZERO : discountPercent;
-        if (percent.compareTo(BigDecimal.ZERO) <= 0) {
-            return amount.setScale(2, RoundingMode.HALF_UP);
-        }
-        return amount.multiply(HUNDRED.subtract(percent))
-                .divide(HUNDRED, 2, RoundingMode.HALF_UP);
     }
 }
