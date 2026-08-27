@@ -65,7 +65,7 @@ public class SalesService {
 
     // Applies a percentage discount to an amount — used by both sales and refund calculations,
     // so a return from a discounted sale refunds the discounted price, not the full price.
-    public BigDecimal applyDiscount(BigDecimal amount, BigDecimal discountPercent) {
+public static BigDecimal applyDiscount(BigDecimal amount, BigDecimal discountPercent) {
         if (discountPercent == null || discountPercent.compareTo(BigDecimal.ZERO) == 0) {
             return amount;
         }
