@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'dashboard_screen.dart';
+import '../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,15 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.add, color: Colors.white),
-                      ),
+                      const AppLogo(size: 40),
                       const SizedBox(width: 12),
                       const Text(
                         'Huny Pharmacy',
