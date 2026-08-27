@@ -59,9 +59,18 @@ public class SalesService {
             subtotal = subtotal.add(batch.getSalePrice().multiply(BigDecimal.valueOf(itemReq.getQuantity())));
         }
 
-        BigDecimal discountAmount = subtotal.multiply(discountPercent).divide(BigDecimal.valueOf(100));
-        sale.setTotalAmount(subtotal.subtract(discountAmount));
+        sale.setTotalAmount(applyDiscount(subtotal, discountPercent));
         return saleRepository.save(sale);
+    }
+
+    // Applies a percentage discount to an amount — used by both sales and refund calculations,
+    // so a return from a discounted sale refunds the discounted price, not the full price.
+    public BigDecimal applyDiscount(BigDecimal amount, BigDecimal discountPercent) {
+        if (discountPercent == null || discountPercent.compareTo(BigDecimal.ZERO) == 0) {
+            return amount;
+        }
+        BigDecimal discountAmount = amount.multiply(discountPercent).divide(BigDecimal.valueOf(100));
+        return amount.subtract(discountAmount);
     }
 
     public java.util.List<Sale> listSales(User currentUser) {
