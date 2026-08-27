@@ -16,6 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+// Sends email via Brevo's HTTPS API instead of SMTP — many free hosts (including Render's free
+// tier) block outbound SMTP ports (587/465/25) to stop spam abuse, but plain HTTPS is never
+// blocked, so this avoids that entirely.
 @Service
 public class EmailService {
 
@@ -50,6 +53,14 @@ public class EmailService {
                 + "Time: " + time + "\n\n"
                 + "If this wasn't expected, consider removing their account from the Staff page.";
         send(adminEmail, "New sign-in to your shop", body);
+    }
+
+    @Async
+    public void sendStaffApprovalRequestEmail(String adminEmail, String staffName, String staffEmail, String role, String shopName) {
+        String body = staffName + " (" + staffEmail + ") wants to join " + shopName + " as " + role + ".\n\n"
+                + "Their account is on hold until you approve it — open the Staff page in the app "
+                + "and tap Approve (or Remove to decline).";
+        send(adminEmail, "New request to join your shop", body);
     }
 
     private void send(String to, String subject, String body) {

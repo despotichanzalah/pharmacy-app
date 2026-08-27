@@ -28,7 +28,6 @@ class _OverviewTabState extends State<OverviewTab> {
   @override
   void initState() {
     super.initState();
-    ApiService.getUser().then((u) => setState(() => _user = u));
     _load();
   }
 
@@ -38,22 +37,41 @@ class _OverviewTabState extends State<OverviewTab> {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        ApiService.getProfitReport(_currentMonth),
+      final user = await ApiService.getUser();
+      final isAdmin = user['role'] == 'ADMIN';
+      if (mounted) setState(() => _user = user);
+
+      // Stock-related data — available to every role.
+      final stockResults = await Future.wait([
         ApiService.getLowStockBatches(threshold: 10),
         ApiService.getExpiringBatches(days: 30),
         ApiService.getAllBatches(),
-        ApiService.getDailySales(days: 7),
-        ApiService.getTopMedicines(_currentMonth, limit: 5),
       ]);
       setState(() {
-        _profit = results[0] as Map<String, dynamic>;
-        _lowStock = results[1] as List<dynamic>;
-        _expiring = results[2] as List<dynamic>;
-        _allBatches = results[3] as List<dynamic>;
-        _dailySales = results[4] as List<dynamic>;
-        _topMedicines = results[5] as List<dynamic>;
+        _lowStock = stockResults[0];
+        _expiring = stockResults[1];
+        _allBatches = stockResults[2];
       });
+
+      // Reports data — Admin-only on the backend, so only fetch it for Admins.
+      // Failing quietly here (rather than showing an error) keeps Overview usable
+      // for Cashiers/Pharmacists, who simply don't see these cards.
+      if (isAdmin) {
+        try {
+          final reportResults = await Future.wait([
+            ApiService.getProfitReport(_currentMonth),
+            ApiService.getDailySales(days: 7),
+            ApiService.getTopMedicines(_currentMonth, limit: 5),
+          ]);
+          setState(() {
+            _profit = reportResults[0] as Map<String, dynamic>;
+            _dailySales = reportResults[1] as List<dynamic>;
+            _topMedicines = reportResults[2] as List<dynamic>;
+          });
+        } catch (_) {
+          // Leave report cards blank rather than failing the whole screen.
+        }
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -63,6 +81,8 @@ class _OverviewTabState extends State<OverviewTab> {
 
   // Called by DashboardScreen every time this tab becomes visible.
   void reload() => _load();
+
+  bool get _isAdmin => _user['role'] == 'ADMIN';
 
   @override
   Widget build(BuildContext context) {
@@ -112,17 +132,20 @@ class _OverviewTabState extends State<OverviewTab> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.4,
             children: [
-              _statCard('Net Profit', _profit != null ? 'Rs ${_profit!['netProfit']}' : '—',
-                  (double.tryParse('${_profit?['netProfit'] ?? 0}') ?? 0) < 0 ? AppColors.bad : AppColors.good),
-              _statCard('Total Sales', _profit != null ? 'Rs ${_profit!['totalSales']}' : '—', AppColors.primary),
+              if (_isAdmin) ...[
+                _statCard('Net Profit', _profit != null ? 'Rs ${_profit!['netProfit']}' : '—',
+                    (double.tryParse('${_profit?['netProfit'] ?? 0}') ?? 0) < 0 ? AppColors.bad : AppColors.good),
+                _statCard('Total Sales', _profit != null ? 'Rs ${_profit!['totalSales']}' : '—', AppColors.primary),
+              ],
               _statCard('Low Stock', '${_lowStock.length}', _lowStock.isEmpty ? AppColors.good : const Color(0xFFB8792E)),
               _statCard('Expiring Soon', '${_expiring.length}', _expiring.isEmpty ? AppColors.good : AppColors.bad),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Revenue trend
-          _panelCard(
+          // Revenue trend — Admin only
+          if (_isAdmin) ...[
+            _panelCard(
             title: 'Revenue trend (7 days)',
             child: _dailySales.isEmpty
                 ? const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('No sales yet this week.', style: TextStyle(color: AppColors.inkSoft)))
@@ -159,6 +182,7 @@ class _OverviewTabState extends State<OverviewTab> {
                   ),
           ),
           const SizedBox(height: 16),
+          ],
 
           // Stock health
           _panelCard(
@@ -201,8 +225,9 @@ class _OverviewTabState extends State<OverviewTab> {
           ),
           const SizedBox(height: 16),
 
-          // Top selling medicines
-          _panelCard(
+          // Top selling medicines — Admin only
+          if (_isAdmin) ...[
+            _panelCard(
             title: 'Top-selling medicines',
             child: _topMedicines.isEmpty
                 ? const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('No sales recorded yet this month.', style: TextStyle(color: AppColors.inkSoft)))
@@ -240,6 +265,7 @@ class _OverviewTabState extends State<OverviewTab> {
                   ),
           ),
           const SizedBox(height: 16),
+          ],
 
           // Expiring soon detail
           _panelCard(

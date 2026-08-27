@@ -47,8 +47,9 @@ public class AuthService {
 
         Shop shop;
         Role role;
+        boolean isJoiningExistingShop = request.getShopId() != null;
 
-        if (request.getShopId() != null) {
+        if (isJoiningExistingShop) {
             shop = shopRepository.findById(request.getShopId())
                     .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
             role = roleRepository.findByName(request.getRoleName())
@@ -71,7 +72,16 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(role);
         user.setShop(shop);
+        // Founding admins (creating a brand-new shop) don't need approval — there's no one to
+        // approve them yet. Everyone joining an existing shop starts on hold.
+        user.setApproved(!isJoiningExistingShop);
         userRepository.save(user);
+
+        if (isJoiningExistingShop) {
+            notifyAdminsOfJoinRequest(user);
+            throw new IllegalArgumentException(
+                    "Account created — it's now waiting for your shop admin to approve it. You'll be able to sign in once approved.");
+        }
 
         String token = jwtUtil.generateToken(user.getEmail(), role.getName());
         return new AuthResponse(token, user.getName(), user.getEmail(), role.getName(), shop.getId(), shop.getName());
@@ -84,6 +94,10 @@ public class AuthService {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (Boolean.FALSE.equals(user.getApproved())) {
+            throw new IllegalArgumentException("Your account is awaiting admin approval. Please check with your shop admin.");
+        }
 
         long expiry = request.isRememberMe() ? REMEMBER_ME_EXPIRATION_MS : defaultExpirationMs;
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName(), expiry);
@@ -127,6 +141,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new GoogleAccountNotRegisteredException(email, (String) info.get("name")));
 
+        if (Boolean.FALSE.equals(user.getApproved())) {
+            throw new IllegalArgumentException("Your account is awaiting admin approval. Please check with your shop admin.");
+        }
+
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName(), REMEMBER_ME_EXPIRATION_MS);
         notifyAdminsOfLogin(user);
 
@@ -145,8 +163,9 @@ public class AuthService {
 
         Shop shop;
         Role role;
+        boolean isJoiningExistingShop = request.getShopId() != null;
 
-        if (request.getShopId() != null) {
+        if (isJoiningExistingShop) {
             shop = shopRepository.findById(request.getShopId())
                     .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
             role = roleRepository.findByName(request.getRoleName())
@@ -171,7 +190,14 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setRole(role);
         user.setShop(shop);
+        user.setApproved(!isJoiningExistingShop);
         userRepository.save(user);
+
+        if (isJoiningExistingShop) {
+            notifyAdminsOfJoinRequest(user);
+            throw new IllegalArgumentException(
+                    "Account created — it's now waiting for your shop admin to approve it. You'll be able to sign in once approved.");
+        }
 
         String token = jwtUtil.generateToken(user.getEmail(), role.getName(), REMEMBER_ME_EXPIRATION_MS);
         return new AuthResponse(token, user.getName(), user.getEmail(), role.getName(), shop.getId(), shop.getName());
@@ -183,6 +209,14 @@ public class AuthService {
             for (User admin : admins) {
                 emailService.sendLoginAlertEmail(admin.getEmail(), user.getName(), user.getEmail(), user.getRole().getName());
             }
+        }
+    }
+
+    private void notifyAdminsOfJoinRequest(User newUser) {
+        List<User> admins = userRepository.findByShopIdAndRole_Name(newUser.getShop().getId(), "ADMIN");
+        for (User admin : admins) {
+            emailService.sendStaffApprovalRequestEmail(
+                    admin.getEmail(), newUser.getName(), newUser.getEmail(), newUser.getRole().getName(), newUser.getShop().getName());
         }
     }
 }

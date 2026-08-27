@@ -34,4 +34,10 @@ public class UserController {
     public void deleteUser(@PathVariable Long id, Authentication auth) {
         userService.deleteUser(id, currentUser(auth));
     }
+
+    // Approves a staff member who joined this shop and is waiting for access.
+    @PutMapping("/{id}/approve")
+    public void approveUser(@PathVariable Long id, Authentication auth) {
+        userService.approveUser(id, currentUser(auth));
+    }
 }

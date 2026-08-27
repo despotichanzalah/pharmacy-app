@@ -39,6 +39,9 @@ dependencies:
   http: ^1.2.0
   # Used to store the login token on the device
   shared_preferences: ^2.2.2
+  # Used to build and print/share the sale receipt
+  pdf: ^3.11.1
+  printing: ^5.13.4
 
 dev_dependencies:
   flutter_test:

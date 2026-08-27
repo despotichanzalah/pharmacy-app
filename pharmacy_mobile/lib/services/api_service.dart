@@ -273,6 +273,76 @@ class ApiService {
   static Future<List<dynamic>> getSaleItems(int saleId) async {
     return await get('/sales/$saleId/items');
   }
+
+  // ---------- Returns ----------
+
+  static Future<Map<String, dynamic>> createReturn({
+    required int saleId,
+    String? reason,
+    required List<Map<String, dynamic>> items, // [{saleItemId, quantity}]
+  }) async {
+    return await post('/returns', {
+      'saleId': saleId,
+      'reason': reason,
+      'items': items,
+    });
+  }
+
+  // ---------- Suppliers ----------
+
+  static Future<List<dynamic>> getSuppliers() async {
+    return await get('/suppliers');
+  }
+
+  static Future<Map<String, dynamic>> addSupplier({
+    required String name,
+    String? contact,
+    String? address,
+  }) async {
+    return await post('/suppliers', {
+      'name': name,
+      'contact': contact,
+      'address': address,
+    });
+  }
+
+  // ---------- Purchases ----------
+
+  static Future<List<dynamic>> listPurchases() async {
+    return await get('/purchases');
+  }
+
+  static Future<List<dynamic>> getPurchaseItems(int purchaseId) async {
+    return await get('/purchases/$purchaseId/items');
+  }
+
+  static Future<Map<String, dynamic>> createPurchase({
+    required int supplierId,
+    required List<Map<String, dynamic>> items, // [{medicineId, batchNumber, quantity, unitPrice, expiryDate}]
+  }) async {
+    return await post('/purchases', {
+      'supplierId': supplierId,
+      'items': items,
+    });
+  }
+
+  // ---------- Staff & Shop ----------
+
+  static Future<List<dynamic>> listStaff() async {
+    return await get('/users');
+  }
+
+  static Future<void> deleteStaff(int id) async {
+    await delete('/users/$id');
+  }
+
+  static Future<void> approveStaff(int id) async {
+    await put('/users/$id/approve', {});
+  }
+
+  static Future<void> deleteMyShop() async {
+    await delete('/shops/mine');
+  }
 }
 
 class ApiException implements Exception {

@@ -3,6 +3,11 @@ import '../main.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'sales_history_screen.dart';
+import 'returns_screen.dart';
+import 'suppliers_screen.dart';
+import 'purchases_screen.dart';
+import 'reports_screen.dart';
+import 'staff_screen.dart';
 import 'tabs/overview_tab.dart';
 import 'tabs/medicines_tab.dart';
 import 'tabs/stock_tab.dart';
@@ -101,11 +106,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesHistoryScreen()));
               }),
-              _drawerItem(Icons.undo, 'Returns', () {}),
-              _drawerItem(Icons.local_shipping, 'Suppliers', () {}),
-              _drawerItem(Icons.shopping_bag, 'Purchases', () {}),
-              _drawerItem(Icons.bar_chart, 'Reports', () {}),
-              if (_user['role'] == 'ADMIN') _drawerItem(Icons.people, 'Staff', () {}),
+              _drawerItem(Icons.undo, 'Returns', () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ReturnsScreen()));
+              }),
+              _drawerItem(Icons.local_shipping, 'Suppliers', () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersScreen()));
+              }),
+              _drawerItem(Icons.shopping_bag, 'Purchases', () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesScreen()));
+              }),
+              if (_user['role'] == 'ADMIN')
+                _drawerItem(Icons.bar_chart, 'Reports', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                }),
+              if (_user['role'] == 'ADMIN')
+                _drawerItem(Icons.people, 'Staff', () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffScreen()));
+                }),
               const Spacer(),
               const Divider(height: 1),
               _drawerItem(Icons.logout, 'Sign out', _logout, color: AppColors.bad),

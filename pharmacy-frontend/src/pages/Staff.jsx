@@ -27,6 +27,15 @@ export default function Staff() {
     }
   }
 
+  async function handleApprove(member) {
+    try {
+      await api.put(`/users/${member.id}/approve`)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not approve this account.')
+    }
+  }
+
   async function handleDeleteShop() {
     const confirmText = window.prompt(
       `This will permanently delete "${user.shopName}" and ALL its data — medicines, stock, sales, everything. This cannot be undone.\n\nType DELETE to confirm.`
@@ -56,7 +65,7 @@ export default function Staff() {
           <EmptyState text="No staff found." />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {staff.map((s) => (
                 <tr key={s.id}>
@@ -64,6 +73,16 @@ export default function Staff() {
                   <td>{s.email}</td>
                   <td>{s.role?.name}</td>
                   <td>
+                    {s.approved === false ? (
+                      <span className="badge badge-warn">Pending approval</span>
+                    ) : (
+                      <span style={{ color: 'var(--good-text)' }}>Active</span>
+                    )}
+                  </td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {s.approved === false && (
+                      <button className="link-danger" style={{ color: 'var(--primary-dark)', marginRight: 14 }} onClick={() => handleApprove(s)}>Approve</button>
+                    )}
                     {s.email !== user.email && (
                       <button className="link-danger" onClick={() => handleDeleteUser(s)}>Remove</button>
                     )}

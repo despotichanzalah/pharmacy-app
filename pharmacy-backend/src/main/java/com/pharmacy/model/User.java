@@ -39,6 +39,13 @@ public class User {
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
 
+    // Approval gate for staff joining an existing shop — null/true means approved (this also
+    // grandfathers every account that existed before this feature shipped, since their DB
+    // column will be NULL, not false). Only set explicitly to false when someone joins a shop
+    // as non-founding staff, until the shop's Admin approves them.
+    @Column(name = "approved")
+    private Boolean approved;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

@@ -34,4 +34,16 @@ public class UserService {
         // hit a foreign-key conflict and the global handler returns a friendly message for it.
         userRepository.delete(target);
     }
+
+    public void approveUser(Long userId, User currentUser) {
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!target.getShop().getId().equals(currentUser.getShop().getId())) {
+            throw new IllegalArgumentException("That account does not belong to your shop");
+        }
+
+        target.setApproved(true);
+        userRepository.save(target);
+    }
 }
