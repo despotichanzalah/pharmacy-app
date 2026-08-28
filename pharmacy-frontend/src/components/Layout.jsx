@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageToggle from './LanguageToggle.jsx'
 
 export default function Layout({ children, title, subtitle, actions }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
   const { t } = useLanguage()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -12,10 +14,12 @@ export default function Layout({ children, title, subtitle, actions }) {
     { to: '/dashboard/medicines', label: t('medicines'), icon: '⊕' },
     { to: '/dashboard/stock', label: t('stock'), icon: '▤' },
     { to: '/dashboard/sales', label: t('sales'), icon: '$' },
+    { to: '/dashboard/sales-history', label: 'Sales History', icon: '📋' },
     { to: '/dashboard/returns', label: t('returns'), icon: '↺' },
     { to: '/dashboard/suppliers', label: t('suppliers'), icon: '⌂' },
     { to: '/dashboard/purchases', label: t('purchases'), icon: '▣' },
     { to: '/dashboard/reports', label: t('reports'), icon: '▲' },
+    ...(user.role === 'ADMIN' ? [{ to: '/dashboard/staff', label: 'Staff', icon: '◈' }] : []),
   ]
 
   function logout() {
@@ -26,7 +30,7 @@ export default function Layout({ children, title, subtitle, actions }) {
 
   return (
     <div className="app-shell">
-      <aside className="app-sidebar">
+      <aside className={`app-sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <span className="brand-cross sidebar-cross" />
           <div>
@@ -42,6 +46,7 @@ export default function Layout({ children, title, subtitle, actions }) {
               to={item.to}
               end={item.to === '/dashboard'}
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={() => setMenuOpen(false)}
             >
               <span className="sidebar-icon">{item.icon}</span>
               {item.label}
@@ -62,7 +67,14 @@ export default function Layout({ children, title, subtitle, actions }) {
         </div>
       </aside>
 
+      {menuOpen && <div className="sidebar-backdrop" onClick={() => setMenuOpen(false)} />}
+
       <main className="app-main">
+        <div className="mobile-topbar">
+          <button className="mobile-menu-btn" onClick={() => setMenuOpen(true)}>☰</button>
+          <strong>{user.shopName || 'Your Shop'}</strong>
+        </div>
+
         {actions && (
           <header className="app-header">
             <div className="header-actions">{actions}</div>
