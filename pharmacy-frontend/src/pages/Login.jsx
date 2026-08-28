@@ -4,6 +4,7 @@ import api from '../api.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
 import GoogleAuthButton from '../components/GoogleAuthButton.jsx'
+import PasswordField from '../components/PasswordField.jsx'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -63,10 +64,8 @@ export default function Login() {
 
           <div className="field">
             <label htmlFor="password">{t('password')}</label>
-            <input
+            <PasswordField
               id="password"
-              type="password"
-              required
               value={form.password}
               onChange={(e) => update('password', e.target.value)}
               placeholder="••••••••"

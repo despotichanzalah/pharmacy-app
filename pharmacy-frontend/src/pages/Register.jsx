@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import api from '../api.js'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
+import PasswordField from '../components/PasswordField.jsx'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -121,7 +122,7 @@ export default function Register() {
 
               <div className="field">
                 <label htmlFor="password">{t('password')}</label>
-                <input id="password" type="password" required minLength={6} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="••••••••" />
+                <PasswordField id="password" minLength={6} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="••••••••" />
               </div>
             </>
           )}

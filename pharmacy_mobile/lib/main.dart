@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'i18n/app_lang.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -26,10 +27,16 @@ class PharmacyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pharmacy System',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+    // Rebuilds the whole app (and flips text direction) whenever the language toggles.
+    return AnimatedBuilder(
+      animation: AppLang.instance,
+      builder: (context, _) {
+        return Directionality(
+          textDirection: AppLang.instance.isUrdu ? TextDirection.rtl : TextDirection.ltr,
+          child: MaterialApp(
+            title: 'Pharmacy System',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.surface,
         colorScheme: ColorScheme.fromSeed(
@@ -75,6 +82,9 @@ class PharmacyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/dashboard': (context) => const DashboardScreen(),
+      },
+          ),
+        );
       },
     );
   }

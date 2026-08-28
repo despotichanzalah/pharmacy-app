@@ -1311,7 +1311,7 @@ input[type="month"]:focus {
 
 
 /* ============================================================
-   Responsive
+   Responsive — phones & tablets
    ============================================================ */
 
 @media (max-width: 1200px) {
@@ -1325,125 +1325,6 @@ input[type="month"]:focus {
         grid-template-columns: 1fr;
     }
 }
-
-@media (max-width: 768px) {
-    .app-shell {
-        grid-template-columns: 1fr;
-        display: block;
-    }
-    .app-sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-    }
-    .app-header,
-    .app-content {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-    .stat-grid,
-    .quick-actions {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-/* RTL adjustments */
-
-html[dir="rtl"] .sidebar-link {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-html[dir="rtl"] .quick-action {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-
-html[dir="rtl"] .data-table th,
-html[dir="rtl"] .data-table td {
-    text-align: right;
-}
-
-html[dir="rtl"] .auth-logo {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .sidebar-brand {
-    flex-direction: row-reverse;
-}
-
-html[dir="rtl"] .sidebar-user {
-    flex-direction: row-reverse;
-}
-
-
-/* ---------- Receipt / bill ---------- */
-
-.receipt-body {
-    max-width: 320px;
-    /* ~80mm thermal receipt width */
-    margin: 0 auto;
-    font-family: var(--mono, 'Courier New', monospace);
-}
-
-.receipt-shop-name {
-    text-align: center;
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--ink);
-    margin-bottom: 4px;
-}
-
-.receipt-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin-bottom: 4px;
-}
-
-.receipt-table th,
-.receipt-table td {
-    padding: 6px 4px;
-    font-size: 12.5px;
-}
-
-@media print {
-    @page {
-        size: 80mm auto;
-        margin: 4mm;
-    }
-    .app-sidebar,
-    .app-header,
-    .page-header,
-    .no-print,
-    .pos-grid,
-    .btn-primary,
-    .alert-success,
-    .alert-error {
-        display: none !important;
-    }
-    .app-content {
-        padding: 0 !important;
-    }
-    .receipt-print {
-        box-shadow: none !important;
-        border: none !important;
-        width: 100% !important;
-    }
-    .receipt-body {
-        max-width: 100% !important;
-    }
-    body {
-        background: #fff !important;
-    }
-}
-
-
-/* ============================================================
-   Responsive — phones & tablets
-   ============================================================ */
 
 .data-table {
     min-width: 560px;
@@ -1547,9 +1428,129 @@ html[dir="rtl"] .sidebar-user {
     }
 }
 
+
+/* RTL adjustments */
+
+html[dir="rtl"] .sidebar-link {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+html[dir="rtl"] .quick-action {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+html[dir="rtl"] .data-table th,
+html[dir="rtl"] .data-table td {
+    text-align: right;
+}
+
+html[dir="rtl"] .auth-logo {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .sidebar-brand {
+    flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .sidebar-user {
+    flex-direction: row-reverse;
+}
+
+
+/* ---------- Receipt / bill ---------- */
+
+.receipt-body {
+    max-width: 320px;
+    /* ~80mm thermal receipt width */
+    margin: 0 auto;
+    font-family: var(--mono, 'Courier New', monospace);
+}
+
+.receipt-shop-name {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-bottom: 4px;
+}
+
+.receipt-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+}
+
+.receipt-table th,
+.receipt-table td {
+    padding: 6px 4px;
+    font-size: 12.5px;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 4mm;
+    }
+    .app-sidebar,
+    .app-header,
+    .page-header,
+    .no-print,
+    .pos-grid,
+    .btn-primary,
+    .alert-success,
+    .alert-error {
+        display: none !important;
+    }
+    .app-content {
+        padding: 0 !important;
+    }
+    .receipt-print {
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+    }
+    .receipt-body {
+        max-width: 100% !important;
+    }
+    body {
+        background: #fff !important;
+    }
+}
+
 .auth-watermark {
     font-size: 11px;
     font-weight: 500;
     color: var(--ink-soft, #6B7280);
     letter-spacing: 0.02em;
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 44px;
+    width: 100%;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--ink-soft, #6B7280);
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle:hover {
+    color: var(--primary-dark, #E98F4A);
 }

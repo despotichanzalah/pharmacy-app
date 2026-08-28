@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import api from '../api.js'
+import PasswordField from '../components/PasswordField.jsx'
 
 export default function ResetPassword() {
   const navigate = useNavigate()
@@ -75,10 +76,8 @@ export default function ResetPassword() {
           <form onSubmit={handleSubmit}>
             <div className="field">
               <label htmlFor="newPassword">New password</label>
-              <input
+              <PasswordField
                 id="newPassword"
-                type="password"
-                required
                 minLength={6}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -87,10 +86,8 @@ export default function ResetPassword() {
             </div>
             <div className="field">
               <label htmlFor="confirmPassword">Confirm new password</label>
-              <input
+              <PasswordField
                 id="confirmPassword"
-                type="password"
-                required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Type it again"
