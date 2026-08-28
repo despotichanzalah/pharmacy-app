@@ -27,7 +27,7 @@ class PharmacyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Huny Pharmacy',
+      title: 'Pharmacy System',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

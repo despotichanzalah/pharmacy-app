@@ -57,9 +57,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const AppLogo(size: 40),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Huny Pharmacy',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Pharmacy System',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          ),
+                          Text(
+                            "Huny's App",
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.inkSoft),
+                          ),
+                        ],
                       ),
                     ],
                   ),

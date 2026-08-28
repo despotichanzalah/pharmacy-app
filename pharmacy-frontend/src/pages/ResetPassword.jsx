@@ -57,7 +57,10 @@ export default function ResetPassword() {
       <div className="auth-topbar">
         <div className="auth-logo">
           <span className="brand-cross" />
-          Huny Pharmacy
+          <div>
+            Pharmacy System
+            <div className="auth-watermark">Huny's App</div>
+          </div>
         </div>
       </div>
 

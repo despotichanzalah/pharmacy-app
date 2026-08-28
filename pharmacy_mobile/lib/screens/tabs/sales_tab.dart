@@ -33,10 +33,12 @@ class _SalesTabState extends State<SalesTab> {
   bool _checkingOut = false;
   String? _error;
   Map<String, dynamic>? _lastReceipt;
+  String _shopName = 'Pharmacy';
 
   @override
   void initState() {
     super.initState();
+    ApiService.getUser().then((u) => setState(() => _shopName = u['shopName'] ?? 'Pharmacy'));
     _load();
   }
 
@@ -150,7 +152,7 @@ class _SalesTabState extends State<SalesTab> {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            pw.Center(child: pw.Text('Huny Pharmacy', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold))),
+            pw.Center(child: pw.Text(_shopName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold))),
             pw.Center(child: pw.Text('Sale #${sale['id']}', style: const pw.TextStyle(fontSize: 9))),
             if (customerName.isNotEmpty) pw.Center(child: pw.Text('Customer: $customerName', style: const pw.TextStyle(fontSize: 9))),
             pw.Divider(),
@@ -227,7 +229,7 @@ class _SalesTabState extends State<SalesTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('Huny Pharmacy', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w800)),
+                          Text(_shopName, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800)),
                           Text('Sale #${sale['id']}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: AppColors.inkSoft)),
                           const Divider(height: 20),
                           ...items.map((it) => Padding(

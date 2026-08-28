@@ -1546,3 +1546,10 @@ html[dir="rtl"] .sidebar-user {
         font-size: 18px;
     }
 }
+
+.auth-watermark {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-soft, #6B7280);
+    letter-spacing: 0.02em;
+}
