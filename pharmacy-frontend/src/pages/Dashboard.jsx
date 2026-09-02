@@ -19,30 +19,33 @@ export default function Dashboard() {
   const [dailySales, setDailySales] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const calls = [
-      api.get('/batches/low-stock?threshold=10'),
-      api.get('/batches/expiring?days=30'),
-      api.get('/batches/low-stock?threshold=999999'),
-    ]
-    if (isAdmin) {
-      calls.push(
-        api.get(`/reports/profit?month=${currentMonth()}`).catch(() => null),
-        api.get(`/reports/top-medicines?month=${currentMonth()}&limit=5`).catch(() => ({ data: [] })),
-        api.get('/reports/daily-sales?days=7').catch(() => ({ data: [] })),
-      )
-    }
-    Promise.all(calls).then((results) => {
-      setLowStock(results[0].data)
-      setExpiring(results[1].data)
-      setAllBatches(results[2].data)
-      if (isAdmin) {
-        if (results[3]) setProfit(results[3].data)
-        setTopMedicines(results[4].data)
-        setDailySales(results[5].data)
+      useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const [lowStockRes, expiringRes, allBatchesRes] = await Promise.all([
+          api.get('/batches/low-stock?threshold=10').catch(() => ({ data: [] })),
+          api.get('/batches/expiring?days=30').catch(() => ({ data: [] })),
+          api.get('/batches/low-stock?threshold=999999').catch(() => ({ data: [] })),
+        ])
+        setLowStock(lowStockRes.data)
+        setExpiring(expiringRes.data)
+        setAllBatches(allBatchesRes.data)
+
+        if (isAdmin) {
+          const [profitRes, topRes, dailyRes] = await Promise.all([
+            api.get(`/reports/profit?month=${currentMonth()}`).catch(() => null),
+            api.get(`/reports/top-medicines?month=${currentMonth()}&limit=5`).catch(() => ({ data: [] })),
+            api.get('/reports/daily-sales?days=7').catch(() => ({ data: [] })),
+          ])
+          if (profitRes) setProfit(profitRes.data)
+          setTopMedicines(topRes.data)
+          setDailySales(dailyRes.data)
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
-    })
+    }
+    loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
