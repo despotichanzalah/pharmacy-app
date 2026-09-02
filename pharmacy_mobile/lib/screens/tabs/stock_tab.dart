@@ -32,6 +32,9 @@ class _StockTabState extends State<StockTab> {
         data = await ApiService.getExpiringBatches(days: 30);
       } else {
         data = await ApiService.getAllBatches();
+        // "All stock" only shows sellable batches — depleted (0-qty) batches now live under
+        // each medicine's history view on the Medicines tab instead of cluttering this list.
+        data = data.where((b) => (b['quantity'] ?? 0) > 0).toList();
       }
       setState(() => _batches = data);
     } catch (_) {
@@ -40,8 +43,6 @@ class _StockTabState extends State<StockTab> {
     }
   }
 
-  // Called by DashboardScreen every time this tab becomes visible, so a
-  // newly added medicine's pack size etc. is never stale here.
   void reload() {
     ApiService.getMedicines().then((m) => setState(() => _medicines = m));
     _load();
@@ -52,25 +53,14 @@ class _StockTabState extends State<StockTab> {
     return m != null ? m['name'] : '#$medicineId';
   }
 
-  int _packSizeFor(dynamic medicineId) {
-    final m = _medicines.firstWhere((m) => m['id'] == medicineId, orElse: () => null);
-    return m != null ? (m['packSize'] ?? 1) : 1;
-  }
-
   void _openBatchSheet({Map<String, dynamic>? editing}) {
-    final isEditing = editing != null;
     int? selectedMedicineId = editing != null ? editing['medicine']['id'] : null;
     final batchNumberController = TextEditingController(text: editing?['batchNumber'] ?? '');
     final quantityController = TextEditingController(text: editing != null ? '${editing['quantity']}' : '');
-    final packsController = TextEditingController();
     final purchasePriceController = TextEditingController(text: editing != null ? '${editing['purchasePrice']}' : '');
     final salePriceController = TextEditingController(text: editing != null ? '${editing['salePrice']}' : '');
-    final packPurchasePriceController = TextEditingController();
-    final packSalePriceController = TextEditingController();
     DateTime? expiryDate = editing != null ? DateTime.tryParse(editing['expiryDate'] ?? '') : null;
-
-    String entryMode = 'units'; // units | packs
-    String priceMode = 'perUnit'; // perUnit | perPack
+    final isEditing = editing != null;
     bool saving = false;
     String? error;
 
@@ -79,205 +69,87 @@ class _StockTabState extends State<StockTab> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final packSize = selectedMedicineId != null ? _packSizeFor(selectedMedicineId) : 1;
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isEditing ? 'Edit batch' : 'Restock a medicine', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 16),
+                  if (error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: AppColors.bad))),
 
-            return Padding(
-              padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isEditing ? 'Edit batch' : 'New batch', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 16),
-                    if (error != null)
-                      Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(error!, style: const TextStyle(color: AppColors.bad))),
-
-                    if (!isEditing) ...[
-                      DropdownButtonFormField<int>(
-                        value: selectedMedicineId,
-                        decoration: const InputDecoration(labelText: 'Medicine'),
-                        items: _medicines.map<DropdownMenuItem<int>>((m) => DropdownMenuItem(value: m['id'], child: Text(m['name']))).toList(),
-                        onChanged: (v) => setSheetState(() => selectedMedicineId = v),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    TextField(controller: batchNumberController, decoration: const InputDecoration(labelText: 'Batch number')),
-                    const SizedBox(height: 12),
-
-                    if (!isEditing && packSize > 1) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Loose units'),
-                              selected: entryMode == 'units',
-                              onSelected: (_) => setSheetState(() => entryMode = 'units'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ChoiceChip(
-                              label: Text('Packs (×$packSize)'),
-                              selected: entryMode == 'packs',
-                              onSelected: (_) => setSheetState(() => entryMode = 'packs'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    if (!isEditing && entryMode == 'packs' && packSize > 1) ...[
-                      TextField(
-                        controller: packsController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(labelText: 'Number of packs', helperText: '= ${(int.tryParse(packsController.text) ?? 0) * packSize} total units'),
-                        onChanged: (_) => setSheetState(() {}),
-                      ),
-                    ] else ...[
-                      TextField(controller: quantityController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Quantity (units)')),
-                    ],
-                    const SizedBox(height: 12),
-
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: expiryDate ?? DateTime.now().add(const Duration(days: 180)),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) setSheetState(() => expiryDate = picked);
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Expiry date'),
-                        child: Text(expiryDate != null ? '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}' : 'Select date'),
-                      ),
+                  if (!isEditing)
+                    DropdownButtonFormField<int>(
+                      value: selectedMedicineId,
+                      decoration: const InputDecoration(labelText: 'Medicine'),
+                      items: _medicines.map<DropdownMenuItem<int>>((m) => DropdownMenuItem(value: m['id'], child: Text(m['name']))).toList(),
+                      onChanged: (v) => setSheetState(() => selectedMedicineId = v),
                     ),
-                    const SizedBox(height: 12),
-
-                    if (!isEditing && packSize > 1) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Price per unit'),
-                              selected: priceMode == 'perUnit',
-                              onSelected: (_) => setSheetState(() => priceMode = 'perUnit'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Price per pack'),
-                              selected: priceMode == 'perPack',
-                              onSelected: (_) => setSheetState(() => priceMode = 'perPack'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    if (!isEditing && priceMode == 'perPack' && packSize > 1) ...[
-                      TextField(
-                        controller: packPurchasePriceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Purchase price (per pack)'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: packSalePriceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Sale price (per pack)'),
-                      ),
-                    ] else ...[
-                      TextField(
-                        controller: purchasePriceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Purchase price (per unit)'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: salePriceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Sale price (per unit)'),
-                      ),
-                    ],
-
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                if (!isEditing && selectedMedicineId == null) {
-                                  setSheetState(() => error = 'Select a medicine.');
-                                  return;
+                  const SizedBox(height: 12),
+                  TextField(controller: batchNumberController, decoration: const InputDecoration(labelText: 'Batch number')),
+                  const SizedBox(height: 12),
+                  TextField(controller: quantityController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Quantity (units)')),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(context: ctx, initialDate: expiryDate ?? DateTime.now().add(const Duration(days: 180)), firstDate: DateTime.now(), lastDate: DateTime(2100));
+                      if (picked != null) setSheetState(() => expiryDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: 'Expiry date'),
+                      child: Text(expiryDate != null ? '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}' : 'Select date'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(controller: purchasePriceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Purchase price (per unit)')),
+                  const SizedBox(height: 12),
+                  TextField(controller: salePriceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Sale price (per unit)')),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!isEditing && selectedMedicineId == null) {
+                                setSheetState(() => error = 'Select a medicine.');
+                                return;
+                              }
+                              if (expiryDate == null) {
+                                setSheetState(() => error = 'Select an expiry date.');
+                                return;
+                              }
+                              setSheetState(() {
+                                saving = true;
+                                error = null;
+                              });
+                              final expiryStr = '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}';
+                              try {
+                                if (isEditing) {
+                                  await ApiService.updateBatch(editing['id'], batchNumber: batchNumberController.text.trim(), quantity: int.tryParse(quantityController.text) ?? 0, expiryDate: expiryStr, purchasePrice: double.tryParse(purchasePriceController.text) ?? 0, salePrice: double.tryParse(salePriceController.text) ?? 0);
+                                } else {
+                                  await ApiService.addBatch(medicineId: selectedMedicineId!, batchNumber: batchNumberController.text.trim(), quantity: int.tryParse(quantityController.text) ?? 0, expiryDate: expiryStr, purchasePrice: double.tryParse(purchasePriceController.text) ?? 0, salePrice: double.tryParse(salePriceController.text) ?? 0);
                                 }
-                                if (expiryDate == null) {
-                                  setSheetState(() => error = 'Select an expiry date.');
-                                  return;
-                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                _load();
+                              } catch (e) {
                                 setSheetState(() {
-                                  saving = true;
-                                  error = null;
+                                  error = e.toString();
+                                  saving = false;
                                 });
-
-                                final finalQty = (!isEditing && entryMode == 'packs')
-                                    ? (int.tryParse(packsController.text) ?? 0) * packSize
-                                    : (int.tryParse(quantityController.text) ?? 0);
-                                final finalPurchase = (!isEditing && priceMode == 'perPack')
-                                    ? (double.tryParse(packPurchasePriceController.text) ?? 0) / packSize
-                                    : (double.tryParse(purchasePriceController.text) ?? 0);
-                                final finalSale = (!isEditing && priceMode == 'perPack')
-                                    ? (double.tryParse(packSalePriceController.text) ?? 0) / packSize
-                                    : (double.tryParse(salePriceController.text) ?? 0);
-                                final expiryStr = '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}';
-
-                                try {
-                                  if (isEditing) {
-                                    await ApiService.updateBatch(
-                                      editing['id'],
-                                      batchNumber: batchNumberController.text.trim(),
-                                      quantity: finalQty,
-                                      expiryDate: expiryStr,
-                                      purchasePrice: finalPurchase,
-                                      salePrice: finalSale,
-                                    );
-                                  } else {
-                                    await ApiService.addBatch(
-                                      medicineId: selectedMedicineId!,
-                                      batchNumber: batchNumberController.text.trim(),
-                                      quantity: finalQty,
-                                      expiryDate: expiryStr,
-                                      purchasePrice: finalPurchase,
-                                      salePrice: finalSale,
-                                    );
-                                  }
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  _load();
-                                } catch (e) {
-                                  setSheetState(() {
-                                    error = e.toString();
-                                    saving = false;
-                                  });
-                                }
-                              },
-                        child: Text(saving ? 'Saving…' : (isEditing ? 'Save changes' : 'Save batch')),
-                      ),
+                              }
+                            },
+                      child: Text(saving ? 'Saving…' : (isEditing ? 'Save changes' : 'Save batch')),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            );
-          },
-        );
+            ),
+          );
+        });
       },
     );
   }
@@ -313,7 +185,7 @@ class _StockTabState extends State<StockTab> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Expanded(child: _tabChip('all', 'All stock')),
+                Expanded(child: _tabChip('all', 'Active stock')),
                 const SizedBox(width: 8),
                 Expanded(child: _tabChip('low', 'Low stock')),
                 const SizedBox(width: 8),
@@ -325,7 +197,16 @@ class _StockTabState extends State<StockTab> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _batches.isEmpty
-                    ? const Center(child: Text('No batches here.', style: TextStyle(color: AppColors.inkSoft)))
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            _tab == 'all' ? 'No active stock. Depleted batches show under each medicine\'s history on the Medicines tab.' : 'No batches here.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.inkSoft),
+                          ),
+                        ),
+                      )
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         itemCount: _batches.length,
@@ -335,11 +216,7 @@ class _StockTabState extends State<StockTab> {
                           final lowQty = (b['quantity'] ?? 0) <= 10;
                           return Container(
                             padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.line),
-                            ),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.line)),
                             child: Row(
                               children: [
                                 Expanded(
@@ -356,10 +233,7 @@ class _StockTabState extends State<StockTab> {
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: lowQty ? const Color(0xFFFFF3E0) : AppColors.surface,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
+                                  decoration: BoxDecoration(color: lowQty ? const Color(0xFFFFF3E0) : AppColors.surface, borderRadius: BorderRadius.circular(20)),
                                   child: Text('${b['quantity']}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: lowQty ? const Color(0xFFB8792E) : AppColors.ink)),
                                 ),
                                 PopupMenuButton<String>(

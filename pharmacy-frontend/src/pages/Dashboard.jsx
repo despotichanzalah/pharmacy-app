@@ -10,6 +10,7 @@ function currentMonth() {
 
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const isAdmin = user.role === 'ADMIN'
   const [profit, setProfit] = useState(null)
   const [lowStock, setLowStock] = useState([])
   const [expiring, setExpiring] = useState([])
@@ -19,61 +20,108 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      api.get(`/reports/profit?month=${currentMonth()}`).catch(() => null),
+    const calls = [
       api.get('/batches/low-stock?threshold=10'),
       api.get('/batches/expiring?days=30'),
-      api.get('/batches/low-stock?threshold=999999'), // pragmatic "all batches"
-      api.get(`/reports/top-medicines?month=${currentMonth()}&limit=5`).catch(() => ({ data: [] })),
-      api.get('/reports/daily-sales?days=7').catch(() => ({ data: [] })),
-    ]).then(([profitRes, lowRes, expRes, allRes, topRes, dailyRes]) => {
-      if (profitRes) setProfit(profitRes.data)
-      setLowStock(lowRes.data)
-      setExpiring(expRes.data)
-      setAllBatches(allRes.data)
-      setTopMedicines(topRes.data)
-      setDailySales(dailyRes.data)
+      api.get('/batches/low-stock?threshold=999999'),
+    ]
+    if (isAdmin) {
+      calls.push(
+        api.get(`/reports/profit?month=${currentMonth()}`).catch(() => null),
+        api.get(`/reports/top-medicines?month=${currentMonth()}&limit=5`).catch(() => ({ data: [] })),
+        api.get('/reports/daily-sales?days=7').catch(() => ({ data: [] })),
+      )
+    }
+    Promise.all(calls).then((results) => {
+      setLowStock(results[0].data)
+      setExpiring(results[1].data)
+      setAllBatches(results[2].data)
+      if (isAdmin) {
+        if (results[3]) setProfit(results[3].data)
+        setTopMedicines(results[4].data)
+        setDailySales(results[5].data)
+      }
       setLoading(false)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Stock health: share of batches that are neither low on stock nor expiring soon.
   const problemIds = new Set([...lowStock.map((b) => b.id), ...expiring.map((b) => b.id)])
   const healthyCount = allBatches.filter((b) => !problemIds.has(b.id)).length
   const healthyPct = allBatches.length > 0 ? Math.round((healthyCount / allBatches.length) * 100) : 100
 
-  const maxDaily = Math.max(1, ...dailySales.map((d) => Number(d.total)))
+  function buildLinePath(values, width, height, padding = 8) {
+    if (values.length === 0) return { line: '', area: '' }
+    const max = Math.max(1, ...values)
+    const stepX = (width - padding * 2) / Math.max(1, values.length - 1)
+    const points = values.map((v, i) => {
+      const x = padding + i * stepX
+      const y = height - padding - (v / max) * (height - padding * 2)
+      return [x, y]
+    })
+    let line = `M ${points[0][0]},${points[0][1]}`
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1]
+      const [x1, y1] = points[i]
+      const cx = (x0 + x1) / 2
+      line += ` C ${cx},${y0} ${cx},${y1} ${x1},${y1}`
+    }
+    const area = `${line} L ${points[points.length - 1][0]},${height - padding} L ${points[0][0]},${height - padding} Z`
+    return { line, area, points }
+  }
+
+  const chartValues = dailySales.map((d) => Number(d.total))
+  const { line, area, points } = buildLinePath(chartValues, 600, 160)
+
+  if (loading) {
+    return (
+      <Layout title="Overview" subtitle="Loading your shop's numbers…">
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-soft)' }}>Loading…</div>
+      </Layout>
+    )
+  }
 
   return (
-    <Layout>
-      <div className="page-header" style={{ background: '#F4EFEA' }}>
-        <h1>Welcome back, {user.name?.split(' ')[0] || ''}</h1>
-        <p className="subtitle">Here's how your shop looks today.</p>
+    <Layout title="" subtitle="">
+      <div
+        className="dashboard-hero"
+        style={{
+          background: 'linear-gradient(135deg, var(--primary) 0%, #EF9750 100%)',
+          borderRadius: 20,
+          padding: '28px 30px',
+          marginBottom: 20,
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 10px 30px -8px rgba(244,162,97,0.45)',
+        }}
+      >
+        <div>
+          <h1 style={{ color: '#fff', margin: 0, fontSize: 26 }}>Welcome back, {user.name?.split(' ')[0] || ''}</h1>
+          <p style={{ color: 'rgba(255,255,255,0.85)', margin: '6px 0 0' }}>{user.shopName || "Here's how your shop looks today."}</p>
+        </div>
+        <div
+          style={{
+            width: 54, height: 54, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 20, color: '#fff', flexShrink: 0,
+          }}
+        >
+          {(user.name || '?')[0]?.toUpperCase()}
+        </div>
       </div>
 
       <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Revenue</div>
-          <div className="stat-value">{profit ? `Rs ${Number(profit.totalSales).toLocaleString()}` : '—'}</div>
-          <div className="stat-sub">This month</div>
-        </div>
-        <div className="stat-card blue-bar">
-          <div className="stat-label">Low stock</div>
-          <div className="stat-value" style={{ color: 'var(--stat-blue)' }}>{loading ? '—' : lowStock.length}</div>
-          <div className="stat-sub">Need restock</div>
-        </div>
-        <div className="stat-card yellow-bar">
-          <div className="stat-label">Net profit</div>
-          <div className={`stat-value ${profit && Number(profit.netProfit) < 0 ? 'danger' : ''}`} style={profit && Number(profit.netProfit) >= 0 ? { color: 'var(--stat-yellow)' } : {}}>
-            {profit ? `Rs ${Number(profit.netProfit).toLocaleString()}` : '—'}
-          </div>
-          <div className="stat-sub">{profit?.month || currentMonth()}</div>
-        </div>
-        <div className="stat-card purple-bar">
-          <div className="stat-label">Expiring soon</div>
-          <div className="stat-value" style={{ color: 'var(--stat-purple)' }}>{loading ? '—' : expiring.length}</div>
-          <div className="stat-sub">Within 30 days</div>
-        </div>
+        {isAdmin && (
+          <>
+            <StatCard icon="📈" label="Revenue" value={profit ? `Rs ${Number(profit.totalSales).toLocaleString()}` : '—'} sub="This month" accent="var(--stat-green, #22A06B)" />
+            <StatCard icon="💰" label="Net profit" value={profit ? `Rs ${Number(profit.netProfit).toLocaleString()}` : '—'} sub={profit?.month || currentMonth()} accent={profit && Number(profit.netProfit) < 0 ? 'var(--bad-text, #E05252)' : '#E9A23D'} />
+          </>
+        )}
+        <StatCard icon="📦" label="Low stock" value={lowStock.length} sub="Need restock" accent="var(--stat-blue, #6C8AE4)" />
+        <StatCard icon="⏰" label="Expiring soon" value={expiring.length} sub="Within 30 days" accent="#8B7FD6" />
       </div>
 
       <div className="quick-actions">
@@ -88,46 +136,64 @@ export default function Dashboard() {
           <span className="quick-action-icon icon-blue">⊕</span>
           <div>
             <div className="quick-action-title">Add medicine</div>
-            <div className="quick-action-sub">Update inventory</div>
+            <div className="quick-action-sub">New medicine + first batch</div>
           </div>
         </Link>
         <Link to="/dashboard/stock" className="quick-action">
           <span className="quick-action-icon icon-yellow">▤</span>
           <div>
-            <div className="quick-action-title">Stock check</div>
-            <div className="quick-action-sub">Review batches</div>
+            <div className="quick-action-title">Restock</div>
+            <div className="quick-action-sub">Add a batch to existing stock</div>
           </div>
         </Link>
-        <Link to="/dashboard/reports" className="quick-action">
-          <span className="quick-action-icon icon-purple">▲</span>
-          <div>
-            <div className="quick-action-title">View reports</div>
-            <div className="quick-action-sub">Track revenue</div>
-          </div>
-        </Link>
+        {isAdmin && (
+          <Link to="/dashboard/reports" className="quick-action">
+            <span className="quick-action-icon icon-purple">▲</span>
+            <div>
+              <div className="quick-action-title">View reports</div>
+              <div className="quick-action-sub">Track revenue</div>
+            </div>
+          </Link>
+        )}
       </div>
 
       <div className="two-col-panels">
-        <div className="panel-card">
-          <div className="panel-head">
-            <h3>Revenue trend</h3>
-            <span className="badge-pill">7 days</span>
-          </div>
-          {dailySales.length === 0 ? (
-            <div className="empty-inline">No sales yet this week.</div>
-          ) : (
-            <div className="bar-chart" style={{ gridTemplateColumns: `repeat(${dailySales.length}, minmax(38px, 1fr))` }}>
-              {dailySales.map((d) => (
-                <div className="bar-column" key={d.date}>
-                  <span className="bar-value" style={{ height: `${Math.max(6, (Number(d.total) / maxDaily) * 100)}%` }} />
-                  <small>{new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}</small>
-                </div>
-              ))}
+        {isAdmin && (
+          <div className="panel-card" style={{ boxShadow: '0 8px 24px -12px rgba(0,0,0,0.12)', border: 'none' }}>
+            <div className="panel-head">
+              <h3>Revenue trend</h3>
+              <span className="badge-pill">7 days</span>
             </div>
-          )}
-        </div>
+            {dailySales.length === 0 ? (
+              <div className="empty-inline">No sales yet this week.</div>
+            ) : (
+              <svg viewBox="0 0 600 160" style={{ width: '100%', height: 160 }}>
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.32" />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d={area} fill="url(#revenueFill)" />
+                <path d={line} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
+                {points && points.map(([x, y], i) => (
+                  <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="var(--primary)" strokeWidth="2.5" />
+                ))}
+              </svg>
+            )}
+            {dailySales.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                {dailySales.map((d) => (
+                  <small key={d.date} style={{ color: 'var(--ink-soft)', fontSize: 11 }}>
+                    {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
+                  </small>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className="panel-card compact-panel">
+        <div className="panel-card compact-panel" style={{ boxShadow: '0 8px 24px -12px rgba(0,0,0,0.12)', border: 'none' }}>
           <div className="panel-head">
             <h3>Stock health</h3>
             <span className="badge-pill">{healthyPct}%</span>
@@ -135,7 +201,7 @@ export default function Dashboard() {
           <div className="donut-wrap">
             <div
               className="donut-chart"
-              style={{ background: `conic-gradient(var(--stat-green) ${healthyPct * 3.6}deg, #DFE9F2 0deg)` }}
+              style={{ background: `conic-gradient(var(--stat-green, #22A06B) ${healthyPct * 3.6}deg, #EEF1F4 0deg)` }}
             >
               <div className="donut-inner">
                 <strong>{healthyPct}%</strong>
@@ -144,40 +210,56 @@ export default function Dashboard() {
             </div>
             <ul className="legend-list">
               <li><span className="dot dot-green" /> Available ({healthyCount})</li>
-              <li><span className="dot dot-gray" /> Monitor ({allBatches.length - healthyCount})</li>
+              <li><span className="dot dot-gray" /> Needs attention ({allBatches.length - healthyCount})</li>
             </ul>
           </div>
         </div>
       </div>
 
       <div className="bottom-grid">
-        <div className="panel-card">
-          <div className="panel-head"><h3>Top-selling medicines</h3></div>
-          {topMedicines.length === 0 ? (
-            <div className="empty-inline">No sales recorded yet this month.</div>
-          ) : (
-            <div className="progress-list">
-              {topMedicines.map((m, i) => {
-                const max = topMedicines[0].quantitySold || 1
-                const pct = Math.round((m.quantitySold / max) * 100)
-                const colors = ['var(--stat-green)', 'var(--stat-blue)', 'var(--stat-yellow)', 'var(--stat-purple)', 'var(--stat-green)']
-                return (
-                  <div className="progress-row" key={m.medicineName}>
-                    <div className="progress-meta">
-                      <span>{m.medicineName}</span>
-                      <span>{m.quantitySold} sold</span>
+        {isAdmin && (
+          <div className="panel-card" style={{ boxShadow: '0 8px 24px -12px rgba(0,0,0,0.12)', border: 'none' }}>
+            <div className="panel-head"><h3>Top-selling medicines</h3></div>
+            {topMedicines.length === 0 ? (
+              <div className="empty-inline">No sales recorded yet this month.</div>
+            ) : (
+              <div className="progress-list">
+                {topMedicines.map((m, i) => {
+                  const max = topMedicines[0].quantitySold || 1
+                  const pct = Math.round((m.quantitySold / max) * 100)
+                  return (
+                    <div className="progress-row" key={m.medicineName}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span
+                          style={{
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: i === 0 ? 'var(--primary)' : '#EEF1F4',
+                            color: i === 0 ? '#fff' : 'var(--ink-soft)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, fontWeight: 800, flexShrink: 0,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div className="progress-meta">
+                            <span>{m.medicineName}</span>
+                            <span>{m.quantitySold} sold</span>
+                          </div>
+                          <div className="progress-track">
+                            <span style={{ width: `${pct}%`, background: 'var(--primary)' }} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="progress-track">
-                      <span style={{ width: `${pct}%`, background: colors[i % colors.length] }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className="panel-card attention-panel">
+        <div className="panel-card attention-panel" style={{ boxShadow: '0 8px 24px -12px rgba(0,0,0,0.12)', border: 'none' }}>
           <div className="panel-head"><h3>Expiring soon</h3></div>
           {expiring.length === 0 ? (
             <div className="empty-inline">Nothing expiring in the next 30 days.</div>
@@ -194,5 +276,32 @@ export default function Dashboard() {
         </div>
       </div>
     </Layout>
+  )
+}
+
+function StatCard({ icon, label, value, sub, accent }) {
+  return (
+    <div
+      className="stat-card"
+      style={{
+        border: 'none',
+        boxShadow: '0 8px 20px -10px rgba(0,0,0,0.14)',
+        borderRadius: 16,
+      }}
+    >
+      <div
+        style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: `${accent}20`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 17, marginBottom: 10,
+        }}
+      >
+        {icon}
+      </div>
+      <div className="stat-label" style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700 }}>{label}</div>
+      <div className="stat-value" style={{ color: accent, fontSize: 21, fontWeight: 800 }}>{value}</div>
+      <div className="stat-sub">{sub}</div>
+    </div>
   )
 }

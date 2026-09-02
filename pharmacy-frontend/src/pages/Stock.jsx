@@ -14,9 +14,9 @@ export default function Stock() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [entryMode, setEntryMode] = useState('units') // 'units' | 'packs'
+  const [entryMode, setEntryMode] = useState('units')
   const [packsCount, setPacksCount] = useState('')
-  const [priceMode, setPriceMode] = useState('perUnit') // 'perUnit' | 'perPack'
+  const [priceMode, setPriceMode] = useState('perUnit')
   const [packPurchasePrice, setPackPurchasePrice] = useState('')
   const [packSalePrice, setPackSalePrice] = useState('')
 
@@ -29,8 +29,11 @@ export default function Stock() {
     const url =
       which === 'low' ? '/batches/low-stock?threshold=10' :
       which === 'expiring' ? '/batches/expiring?days=30' :
-      '/batches/low-stock?threshold=999999' // pragmatic "list all"
-    api.get(url).then(({ data }) => setBatches(data))
+      '/batches/low-stock?threshold=999999'
+    api.get(url).then(({ data }) => {
+      const filtered = which === 'all' ? data.filter((b) => b.quantity > 0) : data
+      setBatches(filtered)
+    })
   }
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function Stock() {
       salePrice: b.salePrice,
       expiryDate: b.expiryDate,
     })
-    resetPackHelpers() // edits always use direct per-unit values, for clarity on exactly what's stored
+    resetPackHelpers()
     setError('')
     setShowForm(true)
   }
@@ -120,12 +123,12 @@ export default function Stock() {
   return (
     <Layout
       title="Stock"
-      subtitle="Batches carry expiry, cost, and sale price for every strip of stock."
-      actions={<button className="btn-primary btn-compact" onClick={() => (showForm ? cancelForm() : startAdd())}>{showForm ? 'Cancel' : '+ Add batch'}</button>}
+      subtitle="Restock an existing medicine here — new medicines get their first batch from the Medicines page."
+      actions={<button className="btn-primary btn-compact" onClick={() => (showForm ? cancelForm() : startAdd())}>{showForm ? 'Cancel' : '+ Restock'}</button>}
     >
       {showForm && (
         <div className="panel">
-          <div className="panel-head"><h3>{editingId ? 'Edit batch' : 'New batch'}</h3></div>
+          <div className="panel-head"><h3>{editingId ? 'Edit batch' : 'Restock a medicine'}</h3></div>
           {error && <div className="alert-error">{error}</div>}
           <form className="form-grid" onSubmit={handleSubmit}>
             <div className="field">
@@ -207,13 +210,13 @@ export default function Stock() {
 
       <div className="panel">
         <div className="tab-row">
-          <button className={`tab-pill ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>All stock</button>
+          <button className={`tab-pill ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>Active stock</button>
           <button className={`tab-pill ${tab === 'low' ? 'active' : ''}`} onClick={() => setTab('low')}>Low stock</button>
           <button className={`tab-pill ${tab === 'expiring' ? 'active' : ''}`} onClick={() => setTab('expiring')}>Expiring soon</button>
         </div>
 
         {batches.length === 0 ? (
-          <EmptyState text="No batches here." />
+          <EmptyState text={tab === 'all' ? 'No active stock. Depleted batches show under each medicine on the Medicines page.' : 'No batches here.'} />
         ) : (
           <table className="data-table">
             <thead>

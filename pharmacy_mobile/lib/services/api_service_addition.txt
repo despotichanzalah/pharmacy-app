@@ -1,0 +1,6 @@
+// Add this method to your existing ApiService class (api_service.dart), next to your
+// other batch-related methods (getAllBatches, getLowStockBatches, etc.)
+
+  static Future<List<dynamic>> getBatchesForMedicine(int medicineId) async {
+    return await get('/batches/medicine/$medicineId');
+  }

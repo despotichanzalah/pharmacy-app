@@ -82,10 +82,12 @@ export default function Layout({ children, title, subtitle, actions }) {
         )}
 
         <div className="app-content">
-          <div className="page-header">
-            <h1>{title}</h1>
-            {subtitle && <p className="subtitle">{subtitle}</p>}
-          </div>
+          {title && (
+            <div className="page-header">
+              <h1>{title}</h1>
+              {subtitle && <p className="subtitle">{subtitle}</p>}
+            </div>
+          )}
           {children}
         </div>
       </main>

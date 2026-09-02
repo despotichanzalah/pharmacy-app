@@ -207,7 +207,7 @@ class ApiService {
     await delete('/medicines/$id');
   }
 
-  // ---------- Batches (stock) ----------
+   // ---------- Batches (stock) ----------
 
   static Future<void> addBatch({
     required int medicineId,
@@ -250,6 +250,10 @@ class ApiService {
 
   static Future<void> deleteBatch(int id) async {
     await delete('/batches/$id');
+  }
+
+  static Future<List<dynamic>> getBatchesForMedicine(int medicineId) async {
+    return await get('/batches?medicineId=$medicineId');
   }
 
   // ---------- Sales ----------
