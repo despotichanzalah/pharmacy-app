@@ -201,7 +201,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _reloadTab(i);
         },
         items: [
-          _NavItem(icon: Icons.dashboard_rounded, label: t('overview')),
+          _NavItem(icon: Icons.dashboard_rounded, label: 'Home'),
           _NavItem(icon: Icons.medication_rounded, label: t('medicines')),
           _NavItem(icon: Icons.inventory_2_rounded, label: t('stock')),
           _NavItem(icon: Icons.point_of_sale_rounded, label: t('sales')),
@@ -279,9 +279,9 @@ class _NavItem {
   const _NavItem({required this.icon, required this.label});
 }
 
-// A floating, rounded "pill" bottom nav bar with an animated active-tab
-// highlight — replaces the default flat Material NavigationBar for a more
-// premium, app-store-quality look.
+// A floating, rounded "pill" bottom nav bar — sized generously and with labels always
+// visible, for better visibility for people with low vision. Uses FittedBox so labels
+// auto-shrink to fit instead of ever getting cut off with "...".
 class _FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
@@ -293,15 +293,15 @@ class _FloatingNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8)),
+              BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 20, offset: const Offset(0, 8)),
             ],
           ),
           child: Row(
@@ -313,31 +313,35 @@ class _FloatingNavBar extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () => onTap(i),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
+                    duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
-                    margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                    padding: EdgeInsets.symmetric(horizontal: active ? 10 : 0),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
                     decoration: BoxDecoration(
                       color: active ? AppColors.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(item.icon, size: 20, color: active ? Colors.white : AppColors.inkSoft),
-                        if (active)
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Text(
-                                item.label,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
-                              ),
+                        Icon(
+                          item.icon,
+                          size: active ? 28 : 25,
+                          color: active ? Colors.white : AppColors.ink,
+                        ),
+                        const SizedBox(height: 3),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            item.label,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: active ? Colors.white : AppColors.ink,
+                              fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                              fontSize: 12.5,
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
